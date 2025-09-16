@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import login from '@/pages/login/login.vue'
-
+import register from '@/pages/register/register.vue'
 const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -16,7 +16,16 @@ const router = createRouter({
         keepAlive: false,
         title: '登录'
       }
-    }
+    },
+    {
+      path: '/register', 
+      name: 'register', 
+      component: register,
+      meta: { 
+        keepAlive: false,
+        title: '注册'
+      }
+    } 
   ]
 })
 
