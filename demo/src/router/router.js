@@ -1,12 +1,42 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import login from '@/pages/login/login.vue'
 import register from '@/pages/register/register.vue'
+import stuhome from '@/pages/stuhome/stuhome.vue'
+import aphome from '@/pages/aphome/aphome.vue'
+import adminhome from '@/pages/admhome/admhome.vue'
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
       path: '/', // 根路径
       redirect: '/login' // 重定向到登录页
+    },
+    {
+      path: '/stuhome',
+      name: 'stuhome',
+      component: stuhome,
+      meta: {
+        keepAlive: false,
+        title: '学生主页'
+      }
+    },
+    {
+      path: '/aphome',
+      name: 'aphome',
+      component: aphome,
+      meta: {
+        keepAlive: false,
+        title: '超管主页'
+      }
+    },
+    {
+      path: '/admhome',
+      name: 'admhome',
+      component: adminhome,
+      meta: {
+        keepAlive: false,
+        title: '管理员主页'
+      }
     },
     {
       path: '/login', 

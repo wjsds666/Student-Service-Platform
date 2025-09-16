@@ -24,12 +24,8 @@
       <div v-if="loginType === 'student'" class="form-panel">
         <form class="login-form">
           <div class="form-group">
-            <label>邮箱</label>
-            <input type="email" placeholder="请输入邮箱" />
-          </div>
-          <div class="form-group">
-            <label>学号</label>
-            <input type="text" placeholder="请输入学号" />
+            <label>用户名</label>
+            <input type="text" placeholder="请输入用户名" />
           </div>
           <div class="form-group">
             <label>密码</label>

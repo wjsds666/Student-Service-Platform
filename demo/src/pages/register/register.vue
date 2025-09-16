@@ -20,6 +20,7 @@
   </div>
 </template>
 <script>
+import axios from 'axios';
 export default {
   name: 'Register', // 组件名称
   data() {
