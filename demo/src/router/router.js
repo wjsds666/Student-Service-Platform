@@ -1,77 +1,40 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import login from '@/pages/login/login.vue'
-import register from '@/pages/register/register.vue'
-import stuhome from '@/pages/stuhome/stuhome.vue'
-import aphome from '@/pages/aphome/aphome.vue'
-import adminhome from '@/pages/admhome/admhome.vue'
+import { useUserStore } from '@/stores/user' 
+
+const login     = () => import('@/pages/login/login.vue')
+const register  = () => import('@/pages/register/register.vue')
+const stuhome   = () => import('@/pages/stuhome/stuhome.vue')
+const aphome    = () => import('@/pages/aphome/aphome.vue')
+const adminhome = () => import('@/pages/admhome/admhome.vue')
+
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    {
-      path: '/', // 根路径
-      redirect: '/login' // 重定向到登录页
-    },
-    {
-      path: '/stuhome',
-      name: 'stuhome',
-      component: stuhome,
-      meta: {
-        keepAlive: false,
-        title: '学生主页'
-      }
-    },
-    {
-      path: '/aphome',
-      name: 'aphome',
-      component: aphome,
-      meta: {
-        keepAlive: false,
-        title: '超管主页'
-      }
-    },
-    {
-      path: '/admhome',
-      name: 'admhome',
-      component: adminhome,
-      meta: {
-        keepAlive: false,
-        title: '管理员主页'
-      }
-    },
-    {
-      path: '/login', 
-      name: 'login', 
-      component: login,
-      meta: { 
-        keepAlive: false,
-        title: '登录'
-      }
-    },
-    {
-      path: '/register', 
-      name: 'register', 
-      component: register,
-      meta: { 
-        keepAlive: false,
-        title: '注册'
-      }
-    } 
+    { path: '/', redirect: '/login' },
+    { path: '/login',    name: 'login',    component: login,    meta: { title: '登录' } },
+    { path: '/register', name: 'register', component: register, meta: { title: '注册' } },
+    { path: '/stuhome',  name: 'stuhome',  component: stuhome,  meta: { title: '学生主页' } },
+    { path: '/admhome',  name: 'admhome',  component: adminhome,meta: { title: '管理员主页' } },
+    { path: '/aphome',   name: 'aphome',   component: aphome,   meta: { title: '超管主页' } }
   ]
 })
 
-export default router
-// 添加导航守卫：每次路由切换时强制刷新页面数据
 router.beforeEach((to, from, next) => {
-  // 给页面设置标题
-  if (to.meta.title) {
-    document.title = to.meta.title
+  if (to.meta?.title) document.title = to.meta.title
+
+  const user = useUserStore()         
+  const token = localStorage.getItem('token')
+
+  if (['stuhome', 'admhome', 'aphome'].includes(to.name) && !token) return next('/login')
+
+
+  if (to.name === 'login' && token) {
+    if (user.isStudent) return next('/stuhome')
+    if (user.isAdmin)   return next('/admhome')
+    return next('/aphome')
   }
-  
-  // 对于需要实时数据的页面，在进入前触发数据刷新
-  if (['e', 'c', 'a'].includes(to.name)) {
-    // 触发localStorage的storage事件，通知相关组件更新数据
-    window.dispatchEvent(new Event('storage'))
-  }
-  
+
   next()
 })
+
+export default router

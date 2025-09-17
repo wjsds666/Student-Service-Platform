@@ -1,7 +1,7 @@
 <template>
   <div class="register-container">
     <div class="form-card">
-      <form @submit.prevent="register">
+      <form @submit.prevent="handleRegister">
         <div class="input-group">
           <label for="email">邮箱</label>
           <input type="email" id="email" v-model="registerForm.email" placeholder="请输入邮箱" required />
@@ -19,32 +19,35 @@
     </div>
   </div>
 </template>
-<script>
-import axios from 'axios';
-export default {
-  name: 'Register', // 组件名称
-  data() {
-    return {
-      // 定义注册表单的数据对象
-      registerForm: {
-        email: '',    // 邮箱
-        userName: '', // 用户名
-        password: ''  // 密码
-      }
-    };
-  },
-  methods: {
-    // 注册方法
-    register() {
-      // 在这里添加注册逻辑，例如发送请求到后端API
-      console.log('注册信息:', this.registerForm);
-      // 可以在这里进行表单验证，如果需要的话
-      // 如果注册成功，可以重置表单或者跳转到其他页面
-      // this.$router.push({ name: 'Home' }); // 例如使用路由跳转到主页
-    }
+
+<script setup>
+import { reactive } from 'vue'
+import { useRouter } from 'vue-router'
+import { apiReg } from '@/api/user'
+import { ElMessage } from 'element-plus'
+
+const router = useRouter()
+const registerForm = reactive({
+  email: '',
+  userName: '',
+  password: ''
+})
+
+async function handleRegister() {
+  if (!registerForm.email || !registerForm.userName || !registerForm.password) {
+    ElMessage.warning('请填写完整')
+    return
   }
-};
+  try {
+    await apiReg(registerForm)   
+    ElMessage.success('注册成功，请登录')
+    router.push({ name: 'login' })
+  } catch (e) {
+    ElMessage.error(e?.response?.data?.msg || '注册失败')
+  }
+}
 </script>
+
 <style scoped>
 .register-container {
   display: flex;
@@ -84,14 +87,13 @@ export default {
   padding: 10px;
   border: none;
   border-radius: 4px;
-  background-color: #2c3e50;
+  background-color: #000;   /* 黑色按钮 */
   color: white;
   font-size: 16px;
   cursor: pointer;
   transition: background-color 0.3s;
 }
-
 .submit-button:hover {
-  background-color: #34495e;
+  background-color: #333;
 }
 </style>

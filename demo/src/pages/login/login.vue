@@ -2,50 +2,45 @@
   <div class="top-bar">
     <span class="title">学生服务中心</span>
   </div>
-
-  <!-- 居中容器 -->
   <div class="login-wrapper">
     <div class="login-background">
-      <!-- tab 页签 -->
       <div class="tab-container">
         <div
           class="tab-btn"
           :class="{ active: loginType === 'student' }"
-          @click="setLoginType('student')"
-        >学生</div>
+          @click="setLoginType('student')">
+          学生
+        </div>
         <div
           class="tab-btn"
           :class="{ active: loginType === 'admin' }"
-          @click="setLoginType('admin')"
-        >管理员</div>
+          @click="setLoginType('admin')">
+          管理员
+        </div>
       </div>
-
-      <!-- 学生表单 -->
       <div v-if="loginType === 'student'" class="form-panel">
-        <form class="login-form">
+        <form class="login-form" @submit.prevent="handleLogin">
           <div class="form-group">
             <label>用户名</label>
-            <input type="text" placeholder="请输入用户名" />
+            <input v-model="loginForm.userName" type="text" placeholder="请输入用户名" />
           </div>
           <div class="form-group">
             <label>密码</label>
-            <input type="password" placeholder="请输入密码" />
+            <input v-model="loginForm.password" type="password" placeholder="请输入密码" />
           </div>
           <button type="submit" class="submit-btn">登录</button>
           <button type="button" class="submit-btn" @click="navigateToRegister">注册</button>
         </form>
       </div>
-
-      <!-- 管理员表单 -->
       <div v-if="loginType === 'admin'" class="form-panel">
-        <form class="login-form">
+        <form class="login-form" @submit.prevent="handleLogin">
           <div class="form-group">
             <label>管理员账号</label>
-            <input type="text" placeholder="请输入管理员账号" />
+            <input v-model="loginForm.userName" type="text" placeholder="请输入管理员账号" />
           </div>
           <div class="form-group">
             <label>密码</label>
-            <input type="password" placeholder="请输入密码" />
+            <input v-model="loginForm.password" type="password" placeholder="请输入密码" />
           </div>
           <button type="submit" class="submit-btn">登录</button>
         </form>
@@ -54,25 +49,41 @@
   </div>
 </template>
 
-<script>
-export default {
-  data() {
-    return { loginType: 'student' };
-  },
-  methods: {
-    setLoginType(type) {
-      this.loginType = type;
-    },
-    navigateToRegister() {
-      // 这里写跳转到注册页的逻辑
-      console.log('跳转到注册页');
-    },
-  },
-};
+<script setup>
+import { reactive } from 'vue'
+import { useUserStore } from '@/stores/user'
+import { ElMessage } from 'element-plus'
+
+const userStore = useUserStore()
+
+const loginType = reactive('student')
+const loginForm = reactive({ userName: '', password: '' })
+
+function setLoginType(type) {
+  loginType = type
+}
+
+function navigateToRegister() {
+  console.log('跳转到注册页')
+}
+
+async function handleLogin() {
+  if (!loginForm.userName || !loginForm.password) {
+    ElMessage.warning('请填写完整')
+    return
+  }
+  try {
+    await userStore.login({
+      userName: loginForm.userName,
+      password: loginForm.password
+    })
+  } catch (e) {
+    ElMessage.error(e?.response?.data?.msg || '登录失败')
+  }
+}
 </script>
 
 <style scoped>
-/* ========= 顶部导航栏 ========= */
 .top-bar {
   position: fixed;
   top: 0;
@@ -96,7 +107,6 @@ export default {
   font-size: 24px;
 }
 
-/* ========= 居中容器 ========= */
 .login-wrapper {
   height: calc(100vh - 40px);
   display: flex;
@@ -121,14 +131,13 @@ export default {
   flex-direction: column;
 }
 
-/* ========= tab 页签（完全圆角） ========= */
 .tab-container {
   flex: 0 0 auto;
   display: flex;
   gap: 12px;
-  padding: 20px; 
-  height: 55px;          /* 上与顶边距离 = 20px */
-  margin-bottom: 10px;    /* 增加底部外边距 */
+  padding: 20px;
+  height: 55px;
+  margin-bottom: 10px;
 }
 
 .tab-btn {
@@ -136,25 +145,24 @@ export default {
   height: 38px;
   line-height: 38px;
   text-align: center;
-  border-radius: 19px;      /* 完全圆角 */
+  border-radius: 19px;
   background: #dcdcdc;
-  color: #333;
+  color: black;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s;
 }
 .tab-btn.active {
-  background: var(--vt-c-indigo);
+  background: #000; 
   color: #fff;
 }
 
-/* ========= 表单区域（距离 tab 下沿也是 20px） ========= */
 .form-panel {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 0 20px 10px;     /* 下留 10px，左右 20px */
+  padding: 0 20px 10px;
 }
 
 .login-form {
@@ -162,7 +170,7 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 20px 0 0;      /* 底部不留白 */
+  padding: 20px 0 0;
 }
 
 .form-group {
@@ -178,18 +186,24 @@ export default {
   padding: 10px;
 }
 
-/* ========= 按钮 ========= */
 .submit-btn {
   width: 100%;
   margin-top: 8px;
   padding: 12px;
   border-radius: 8px;
-  background-color: var(--vt-c-indigo);
-  color: white;
+  background: #000; 
+  color: #fff;
   border: none;
   cursor: pointer;
+  transition: background 0.2s;
 }
-.submit-btn + .submit-btn {
-  background-color: #7a7a7a;
+.submit-btn:hover {
+  background: #333;
+}
+.submit-btn + .submit-btn { 
+  background: #555;
+}
+.submit-btn + .submit-btn:hover {
+  background: #666;
 }
 </style>
