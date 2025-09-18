@@ -25,34 +25,48 @@
       处理评价
     </div>
   </div>
-  <div class="profile-content" v-if="activeMenu === 'profile'">
-    <div class="form-group">
-      <label>姓名</label>
-      <input type="text" placeholder="请输入姓名" />
+  <div class="profile-container" v-if="activeMenu === 'profile'">
+    <div class="profile-left">
+      <div
+        class="circle-frame"
+        :style="{ backgroundImage: profileImage ? 'url(' + profileImage + ')' : 'none' }"
+      ></div>
+      <input
+        type="file"
+        @change="handleImageUpload"
+        accept="image/*"
+        class="image-upload"
+      />
     </div>
-    <div class="form-group">
-      <label>学号</label>
-      <input type="text" placeholder="请输入学号" />
-    </div>
-    <div class="form-group">
-      <label>班级</label>
-      <input type="text" placeholder="请输入班级" />
-    </div>
-    <div class="form-group">
-      <label>专业</label>
-      <input type="text" placeholder="请输入专业" />
-    </div>
-    <div class="form-group">
-      <label>学院</label>
-      <input type="text" placeholder="请输入学院" />
-    </div>
-    <div class="form-group">
-      <label>电话</label>
-      <input type="text" placeholder="请输入电话" />
-    </div>
-    <div class="form-group">
-      <label>邮箱</label>
-      <input type="text" placeholder="请输入邮箱" />
+    <div class="profile-right">
+      <div class="form-group">
+        <label>姓名</label>
+        <input type="text" v-model="profile.name" placeholder="请输入姓名" />
+      </div>
+      <div class="form-group">
+        <label>学号</label>
+        <input type="text" v-model="profile.studentId" placeholder="请输入学号" />
+      </div>
+      <div class="form-group">
+        <label>班级</label>
+        <input type="text" v-model="profile.class" placeholder="请输入班级" />
+      </div>
+      <div class="form-group">
+        <label>专业</label>
+        <input type="text" v-model="profile.major" placeholder="请输入专业" />
+      </div>
+      <div class="form-group">
+        <label>学院</label>
+        <input type="text" v-model="profile.college" placeholder="请输入学院" />
+      </div>
+      <div class="form-group">
+        <label>电话</label>
+        <input type="text" v-model="profile.phone" placeholder="请输入电话" />
+      </div>
+      <div class="form-group">
+        <label>邮箱</label>
+        <input type="text" v-model="profile.email" placeholder="请输入邮箱" />
+      </div>
     </div>
   </div>
 </template>
@@ -62,12 +76,31 @@ export default {
   data() {
     return {
       activeMenu: "profile",
+      profileImage: "",
+      profile: {
+        name: "",
+        studentId: "",
+        class: "",
+        major: "",
+        college: "",
+        phone: "",
+        email: "",
+      },
     };
   },
   methods: {
     switchMenu(menu) {
       this.activeMenu = menu;
-      // 这里可以添加页面切换逻辑
+    },
+    handleImageUpload(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          this.profileImage = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
     },
   },
 };
@@ -116,22 +149,56 @@ export default {
 .menu-item.active {
   background-color: #555;
 }
-.profile-content {
+.profile-container {
+  display: flex;
+  margin-top: 40px;
   margin-left: 120px;
   padding: 20px;
+  height: calc(100vh - 40px);
 }
-.form-group {
+.profile-left {
+  flex: 1;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.circle-frame {
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  border: 2px solid #ccc;
+  background-color: #f5f5f5;
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+.image-upload {
+  margin-top: 20px;
+}
+.profile-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px;
+}
+.form-group {
   margin-bottom: 15px;
+  text-align: center;
 }
 .form-group label {
-  margin-bottom: 5px;
-  font-size: 14px;
+  display: inline-block;
+  width: 80px;
+  margin-right: 10px;
+  font-size: 16px;
 }
 .form-group input {
-  border-radius: 8px;
-  padding: 10px;
+  padding: 8px;
   border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 200px;
+  font-size: 16px;
 }
 </style>
