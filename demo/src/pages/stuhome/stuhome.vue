@@ -8,7 +8,7 @@
       :class="{ active: activeMenu === 'profile' }"
       @click="switchMenu('profile')"
     >
-      个人简介
+      个人信息
     </div>
     <div
       class="menu-item"
@@ -22,50 +22,39 @@
       :class="{ active: activeMenu === 'evaluation' }"
       @click="switchMenu('evaluation')"
     >
-      处理评价
+      获取帖子
     </div>
   </div>
-  <div class="profile-container" v-if="activeMenu === 'profile'">
-    <div class="profile-left">
-      <div
-        class="circle-frame"
-        :style="{ backgroundImage: profileImage ? 'url(' + profileImage + ')' : 'none' }"
-      ></div>
-      <input
-        type="file"
-        @change="handleImageUpload"
-        accept="image/*"
-        class="image-upload"
-      />
-    </div>
-    <div class="profile-right">
-      <div class="form-group">
-        <label>姓名</label>
-        <input type="text" v-model="profile.name" placeholder="请输入姓名" />
+  <div v-if="activeMenu === 'profile'" class="profile-container">
+    <div class="vertical-divider"></div>
+    <div class="input-container">
+      <h1 style="font-family: 'Microsoft YaHei'">基本信息</h1>
+      <div class="composite-component">
+        <div class="label-input-group">
+          <label>姓名</label>
+          <input type="text" />
+        </div>
+        <div class="label-input-group">
+          <label>学号</label>
+          <input type="text" />
+        </div>
+        <div class="label-input-group">
+          <label>学院</label>
+          <input type="text" />
+        </div>
+        <div class="label-input-group">
+          <label>专业</label>
+          <input type="text" />
+        </div>
       </div>
-      <div class="form-group">
-        <label>学号</label>
-        <input type="text" v-model="profile.studentId" placeholder="请输入学号" />
-      </div>
-      <div class="form-group">
-        <label>班级</label>
-        <input type="text" v-model="profile.class" placeholder="请输入班级" />
-      </div>
-      <div class="form-group">
-        <label>专业</label>
-        <input type="text" v-model="profile.major" placeholder="请输入专业" />
-      </div>
-      <div class="form-group">
-        <label>学院</label>
-        <input type="text" v-model="profile.college" placeholder="请输入学院" />
-      </div>
-      <div class="form-group">
+      <h1 style="font-family: 'Microsoft YaHei'">联系方式</h1>
+      <div class="label-input-group">
         <label>电话</label>
-        <input type="text" v-model="profile.phone" placeholder="请输入电话" />
+        <input type="text" />
       </div>
-      <div class="form-group">
+      <div class="label-input-group">
         <label>邮箱</label>
-        <input type="text" v-model="profile.email" placeholder="请输入邮箱" />
+        <input type="text" />
       </div>
     </div>
   </div>
@@ -76,28 +65,19 @@ export default {
   data() {
     return {
       activeMenu: "profile",
-      profileImage: "",
-      profile: {
-        name: "",
-        studentId: "",
-        class: "",
-        major: "",
-        college: "",
-        phone: "",
-        email: "",
-      },
+      avatar: null,
     };
   },
   methods: {
     switchMenu(menu) {
       this.activeMenu = menu;
     },
-    handleImageUpload(e) {
-      const file = e.target.files[0];
+    handleAvatarChange(event) {
+      const file = event.target.files[0];
       if (file) {
         const reader = new FileReader();
-        reader.onload = (event) => {
-          this.profileImage = event.target.result;
+        reader.onload = (e) => {
+          this.avatar = e.target.result;
         };
         reader.readAsDataURL(file);
       }
@@ -122,6 +102,32 @@ export default {
   border: 1px solid rgba(0, 0, 0, 0.1);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 10px 15px rgba(0, 0, 0, 0.2),
     inset 0 1px 2px rgba(255, 255, 255, 0.1);
+}
+.vertical-divider {
+  position: absolute;
+  left: 500px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-color: #ccc;
+}
+.input-container {
+  position: absolute;
+  left: 510px;
+  top: 220px;
+}
+.label-input-group {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+}
+.label-input-group label {
+  width: 80px;
+  text-align: right;
+  margin-right: 10px;
+}
+.label-input-group input {
+  width: 200px;
 }
 .platform-name {
   font-family: "Microsoft YaHei", sans-serif;
@@ -150,55 +156,32 @@ export default {
   background-color: #555;
 }
 .profile-container {
-  display: flex;
-  margin-top: 40px;
   margin-left: 120px;
   padding: 20px;
-  height: calc(100vh - 40px);
 }
-.profile-left {
-  flex: 1;
+.draggable-component {
+  position: absolute;
+  border: 1px solid #ccc;
+  background-color: #f9f9f9;
+  cursor: move;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
 }
-.circle-frame {
-  width: 400px;
-  height: 400px;
+.avatar-container {
+  width: 80px;
+  height: 80px;
+  border: 1px solid #ddd;
   border-radius: 50%;
-  border: 2px solid #ccc;
-  background-color: #f5f5f5;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.avatar-preview {
+  width: 100%;
+  height: 100%;
   background-size: cover;
   background-position: center;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-}
-.image-upload {
-  margin-top: 20px;
-}
-.profile-right {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 0 20px;
-}
-.form-group {
-  margin-bottom: 15px;
-  text-align: center;
-}
-.form-group label {
-  display: inline-block;
-  width: 80px;
-  margin-right: 10px;
-  font-size: 16px;
-}
-.form-group input {
-  padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  width: 200px;
-  font-size: 16px;
 }
 </style>
