@@ -87,7 +87,7 @@ async function handleRegister() {
   padding: 10px;
   border: none;
   border-radius: 4px;
-  background-color: #000;   /* 黑色按钮 */
+  background-color: #000;  
   color: white;
   font-size: 16px;
   cursor: pointer;

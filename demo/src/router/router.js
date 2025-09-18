@@ -1,11 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { useUserStore } from '@/stores/user' 
+import { useUserStore } from '@/stores/user'
 
 const login     = () => import('@/pages/login/login.vue')
 const register  = () => import('@/pages/register/register.vue')
 const stuhome   = () => import('@/pages/stuhome/stuhome.vue')
 const aphome    = () => import('@/pages/aphome/aphome.vue')
-const adminhome = () => import('@/pages/admhome/admhome.vue')
+const admhome = () => import('@/pages/admhome/admhome.vue')
 
 const router = createRouter({
   history: createWebHistory(),
@@ -14,7 +14,7 @@ const router = createRouter({
     { path: '/login',    name: 'login',    component: login,    meta: { title: '登录' } },
     { path: '/register', name: 'register', component: register, meta: { title: '注册' } },
     { path: '/stuhome',  name: 'stuhome',  component: stuhome,  meta: { title: '学生主页' } },
-    { path: '/admhome',  name: 'admhome',  component: adminhome,meta: { title: '管理员主页' } },
+    { path: '/admhome',  name: 'admhome',  component: admhome,meta: { title: '管理员主页' } },
     { path: '/aphome',   name: 'aphome',   component: aphome,   meta: { title: '超管主页' } }
   ]
 })
@@ -22,11 +22,19 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   if (to.meta?.title) document.title = to.meta.title
 
-  const user = useUserStore()         
+  const user = useUserStore()
+  if (!user.userType) user.restore()
+
   const token = localStorage.getItem('token')
 
-  if (['stuhome', 'admhome', 'aphome'].includes(to.name) && !token) return next('/login')
 
+  if (to.name === 'login' && token) {
+    user.logout()   
+    return next()
+  }
+
+
+  if (['stuhome', 'admhome', 'aphome'].includes(to.name) && !token) return next('/login')
 
   if (to.name === 'login' && token) {
     if (user.isStudent) return next('/stuhome')
