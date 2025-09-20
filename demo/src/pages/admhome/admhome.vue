@@ -1,175 +1,391 @@
 <template>
+  <!-- 顶部条 -->
   <div class="top-bar">
-    <div class="platform-name">管理员中心</div>
+    <div class="platform-name">超级管理员中心</div>
   </div>
 
+  <!-- 左侧菜单 -->
   <div class="menu-bar">
-    <div class="menu-item" :class="{ active: activeMenu === 'feedback' }" @click="onFeedbackClick">查看反馈</div>
-    <div class="menu-item" :class="{ active: activeMenu === 'orders' }" @click="onOrdersClick">我的接单</div>
+    <div
+      class="menu-item"
+      :class="{ active: activeMenu === 'feedback' }"
+      @click="onFeedbackClick"
+    >
+      查看反馈
+    </div>
+    <div
+      class="menu-item"
+      :class="{ active: activeMenu === 'orders' }"
+      @click="onOrdersClick"
+    >
+      我的接单
+    </div>
+    <div
+      class="menu-item"
+      :class="{ active: activeMenu === 'posts' }"
+      @click="onPostsClick"
+    >
+      所有帖子
+    </div>
+    <div
+      class="menu-item"
+      :class="{ active: activeMenu === 'audit' }"
+      @click="onAuditClick"
+    >
+      垃圾审核
+    </div>
   </div>
 
+  <!-- 右侧内容区 -->
   <div class="content-container">
-    <!-- 待处理反馈 -->
+    <!-- 1. 查看反馈（管理员原功能） -->
     <div v-if="activeMenu === 'feedback'" class="content-panel">
       <h2>待处理反馈</h2>
       <div v-loading="loading" element-loading-text="加载中...">
-        <div class="card" v-for="p in feedbackPosts" :key="p.postId" @click="openDetail(p)">
+        <div
+          class="card"
+          v-for="p in feedbackPosts"
+          :key="p.postId"
+          @click="openDetail(p)"
+        >
           <div class="card-header">{{ p.title }}</div>
           <div class="card-body">{{ p.content }}</div>
           <div class="card-footer">
-            <button class="action-btn" @click.stop="handleClaim(p)">接单</button>
-            <button class="action-btn" @click.stop="handleReply(p)">回复</button>
-            <button class="action-btn" @click.stop="handleReport(p)">标记</button>
+            <button class="action-btn" @click.stop="handleClaim(p)">
+              接单
+            </button>
+            <button class="action-btn" @click.stop="handleReply(p)">
+              回复
+            </button>
+            <button class="action-btn" @click.stop="handleReport(p)">
+              标记
+            </button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 我的接单 -->
+    <!-- 2. 我的接单（管理员原功能） -->
     <div v-if="activeMenu === 'orders'" class="content-panel">
       <h2>我的接单</h2>
       <div v-loading="loading" element-loading-text="加载中...">
-        <div class="card" v-for="p in orderPosts" :key="p.postId" @click="openDetail(p)">
+        <div
+          class="card"
+          v-for="p in orderPosts"
+          :key="p.postId"
+          @click="openDetail(p)"
+        >
           <div class="card-header">{{ p.title }}</div>
           <div class="card-body">{{ p.content }}</div>
           <div class="card-footer">
-            <button class="action-btn" @click.stop="handleComplete(p)">完成</button>
-            <button class="action-btn" @click.stop="handleReply(p)">回复</button>
-            <button class="action-btn" @click.stop="handleReport(p)">标记</button>
+            <button class="action-btn" @click.stop="handleComplete(p)">
+              完成
+            </button>
+            <button class="action-btn" @click.stop="handleReply(p)">
+              回复
+            </button>
+            <button class="action-btn" @click.stop="handleReport(p)">
+              标记
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. 所有帖子（超管专属：一键删除） -->
+    <div v-if="activeMenu === 'posts'" class="content-panel">
+      <h2>所有帖子</h2>
+      <div v-loading="loading" element-loading-text="加载中...">
+        <div
+          class="card"
+          v-for="p in allPosts"
+          :key="p.postId"
+          @click="openDetail(p)"
+        >
+          <div class="card-header">{{ p.title }}</div>
+          <div class="card-body">{{ p.content }}</div>
+          <div class="card-footer">
+            <button class="action-btn danger" @click.stop="handleDelete(p)">
+              删除
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. 垃圾审核（超管专属：驳回 / 删除） -->
+    <div v-if="activeMenu === 'audit'" class="content-panel">
+      <h2>垃圾信息审核</h2>
+      <div v-loading="loading" element-loading-text="加载中...">
+        <div class="card" v-for="r in reportList" :key="r.postId">
+          <div class="card-header">{{ r.title }}</div>
+          <div class="card-body">
+            <p><strong>举报理由：</strong>{{ r.reason }}</p>
+            <p><strong>提交人：</strong>{{ r.reporter }}</p>
+          </div>
+          <div class="card-footer">
+            <button class="action-btn" @click.stop="handleAuditReject(r)">
+              驳回
+            </button>
+            <button
+              class="action-btn danger"
+              @click.stop="handleAuditDelete(r)"
+            >
+              删除
+            </button>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- 大图弹窗 -->
-  <el-dialog v-model="showDlg" title="反馈详情" width="700px" center>
-    <el-carousel v-if="detail.picUrls?.length" height="400px" indicator-position="outside">
+  <!-- 大图弹窗（复用 admhome 样式） -->
+  <el-dialog v-model="showDlg" title="详情" width="700px" center>
+    <el-carousel
+      v-if="detail.picUrls?.length"
+      height="400px"
+      indicator-position="outside"
+    >
       <el-carousel-item v-for="(url, idx) in detail.picUrls" :key="idx">
-        <el-image :src="url" :preview-src-list="detail.picUrls" fit="contain" class="gallery-img" />
+        <el-image
+          :src="url"
+          :preview-src-list="detail.picUrls"
+          fit="contain"
+          class="gallery-img"
+        />
       </el-carousel-item>
     </el-carousel>
 
     <div class="detail-info">
       <h3>{{ detail.title }}</h3>
       <p class="meta">提交时间：{{ detail.createTime }}</p>
-      <p class="meta">紧急程度：
-        <el-tag :type="detail.level === 1 ? 'danger' : 'info'">{{ detail.level === 1 ? '紧急' : '普通' }}</el-tag>
+      <p class="meta">
+        紧急程度：
+        <el-tag :type="detail.level === 1 ? 'danger' : 'info'">{{
+          detail.level === 1 ? "紧急" : "普通"
+        }}</el-tag>
       </p>
       <p class="content">{{ detail.content }}</p>
-      <p v-if="detail.response" class="response">管理员回复：{{ detail.response }}</p>
+      <p v-if="detail.response" class="response">
+        管理员回复：{{ detail.response }}
+      </p>
     </div>
 
     <template #footer>
       <el-button @click="showDlg = false">关闭</el-button>
-      <el-button type="primary" @click="handleClaim(detail)" v-if="activeMenu === 'feedback'">接单</el-button>
+      <el-button
+        type="primary"
+        @click="handleClaim(detail)"
+        v-if="activeMenu === 'feedback'"
+        >接单</el-button
+      >
       <el-button type="primary" @click="handleReply(detail)">回复</el-button>
     </template>
   </el-dialog>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import { useUserStore } from '@/stores/user'
-import { apiReportPost } from '@/api/report'
-import { apiGetAllPosts,
-         apiSelectOrders,
-         apiAcceptPost,
-         apiReplyPost} from '@/api/post'
+import { ref, onMounted } from "vue";
+import { ElMessage } from "element-plus";
+import { useUserStore } from "@/stores/user";
+// 沿用原 admhome 接口（死模板阶段）
+import { apiReportPost } from "@/api/report";
+import {
+  apiGetAllPosts,
+  apiSelectOrders,
+  apiAcceptPost,
+  apiReplyPost,
+} from "@/api/post";
 
-const userStore = useUserStore()
-const activeMenu = ref('feedback')
-const showDlg = ref(false)
-const detail = ref({})
-const loading = ref(false)
+const userStore = useUserStore();
+const activeMenu = ref("feedback");
+const showDlg = ref(false);
+const detail = ref({});
+const loading = ref(false);
 
 /* ===== 数据 ===== */
-const feedbackPosts = ref([])
-const orderPosts = ref([])
-const auditPosts = ref([])
+const feedbackPosts = ref([]);
+const orderPosts = ref([]);
+const auditPosts = ref([]);
+
+/* ===== 超管新增假数据 ===== */
+const allPosts = ref([
+  {
+    postId: 1,
+    title: "宿舍灯坏了",
+    content: "A5-203 灯不亮",
+    level: 1,
+    createTime: "2025-06-20 09:30",
+    response: null,
+  },
+  {
+    postId: 2,
+    title: "空调太冷",
+    content: "三楼空调温度低",
+    level: 2,
+    createTime: "2025-06-19 16:00",
+    response: null,
+  },
+]);
+
+const reportList = ref([
+  { postId: 3, title: "垃圾广告", reason: "内容无效", reporter: "学生A" },
+  { postId: 4, title: "重复提交", reason: "恶意刷屏", reporter: "学生B" },
+]);
 
 /* ===== 拉取函数 ===== */
 async function loadFeedback() {
-  loading.value = true
+  loading.value = true;
   try {
-    const { data } = await apiGetAllPosts({ state: 1 }) // 未接单
-    feedbackPosts.value = data
-  } finally { loading.value = false }
+    const { data } = await apiGetAllPosts({ state: 1 }); // 未接单
+    feedbackPosts.value = data;
+  } finally {
+    loading.value = false;
+  }
 }
 
 async function loadOrders() {
-  loading.value = true
+  loading.value = true;
   try {
-    const { data } = await apiSelectOrders({ state: 2 }) // 已接单
-    orderPosts.value = data
-  } finally { loading.value = false }
+    const { data } = await apiSelectOrders({ state: 2 }); // 已接单
+    orderPosts.value = data;
+  } finally {
+    loading.value = false;
+  }
 }
 
-/* ===== 弹窗（不复用 /post，直接复用列表数据） ===== */
+/* ===== 新增：所有帖子 & 垃圾审核 ===== */
+async function loadAllPosts() {
+  loading.value = true;
+  // 死数据：除已删除外全部
+  allPosts.value = [
+    {
+      postId: 1,
+      title: "宿舍灯坏了",
+      content: "A5-203 灯不亮",
+      level: 1,
+      createTime: "2025-06-20 09:30",
+      response: null,
+    },
+    {
+      postId: 2,
+      title: "空调太冷",
+      content: "三楼空调温度低",
+      level: 2,
+      createTime: "2025-06-19 16:00",
+      response: null,
+    },
+  ];
+  setTimeout(() => {
+    loading.value = false;
+  }, 300);
+}
+
+async function loadAudit() {
+  loading.value = true;
+  // 死数据：被举报待审
+  reportList.value = [
+    { postId: 3, title: "垃圾广告", reason: "内容无效", reporter: "学生A" },
+    { postId: 4, title: "重复提交", reason: "恶意刷屏", reporter: "学生B" },
+  ];
+  setTimeout(() => {
+    loading.value = false;
+  }, 300);
+}
+
+/* ===== 弹窗（复用 admhome） ===== */
 function openDetail(post) {
-  // 直接用已有数据，不调 /post 详情接口
-  detail.value = post
-  showDlg.value = true
+  detail.value = post;
+  showDlg.value = true;
 }
 
-/* ===== 按钮事件（对接真实 Mock） ===== */
+/* ===== 按钮事件 ===== */
+// 原管理员功能
 async function handleClaim(post) {
   try {
-    await apiAcceptPost({ userId: userStore.userId, postId: post.postId })
-    ElMessage.success('接单成功')
-    // 可选刷新当前列表
-    if (activeMenu.value === 'feedback') loadFeedback()
+    await apiAcceptPost({ userId: userStore.userId, postId: post.postId });
+    ElMessage.success("接单成功");
+    if (activeMenu.value === "feedback") loadFeedback();
   } catch (e) {
-    ElMessage.error(e?.response?.data?.msg || '接单失败')
+    ElMessage.error(e?.response?.data?.msg || "接单失败");
   }
 }
 
 async function handleReply(post) {
   try {
-    await apiReplyPost({ userId: userStore.userId, postId: post.postId, response: '已处理' })
-    ElMessage.success('回复成功')
-    if (activeMenu.value === 'feedback') loadFeedback()
-    if (activeMenu.value === 'orders') loadOrders()
+    await apiReplyPost({
+      userId: userStore.userId,
+      postId: post.postId,
+      response: "已处理",
+    });
+    ElMessage.success("回复成功");
+    if (activeMenu.value === "feedback") loadFeedback();
+    if (activeMenu.value === "orders") loadOrders();
   } catch (e) {
-    ElMessage.error(e?.response?.data?.msg || '回复失败')
-  }
-}
-async function handleReport(post) {
-  try {
-    await apiReportPost({ userId: userStore.userId, postId: post.postId, reason: '用户标记为垃圾' })
-    ElMessage.success('标记成功')
-    // 刷新当前列表
-    if (activeMenu.value === 'feedback') loadFeedback()
-    if (activeMenu.value === 'orders') loadOrders()
-  } catch (e) {
-    ElMessage.error(e?.response?.data?.msg || '标记失败')
+    ElMessage.error(e?.response?.data?.msg || "回复失败");
   }
 }
 
-function handleComplete(post) { ElMessage.success('已完成') }
+async function handleReport(post) {
+  try {
+    await apiReportPost({
+      userId: userStore.userId,
+      postId: post.postId,
+      reason: "用户标记为垃圾",
+    });
+    ElMessage.success("标记成功");
+    if (activeMenu.value === "feedback") loadFeedback();
+    if (activeMenu.value === "orders") loadOrders();
+  } catch (e) {
+    ElMessage.error(e?.response?.data?.msg || "标记失败");
+  }
+}
+
+function handleComplete(post) {
+  ElMessage.success("已完成");
+}
+
+// 超管专属功能（死模板）
+async function handleDelete(post) {
+  ElMessage.success("已删除（模板）");
+  allPosts.value = allPosts.value.filter((p) => p.postId !== post.postId);
+}
+
+async function handleAuditReject(report) {
+  ElMessage.success("已驳回（模板）");
+  reportList.value = reportList.value.filter((r) => r.postId !== report.postId);
+}
+
+async function handleAuditDelete(report) {
+  ElMessage.success("已删除并通过审核（模板）");
+  reportList.value = reportList.value.filter((r) => r.postId !== report.postId);
+}
+
 /* ===== 菜单切换 ===== */
 function onFeedbackClick() {
-  activeMenu.value = 'feedback'
-  loadFeedback()
+  activeMenu.value = "feedback";
+  loadFeedback();
 }
 function onOrdersClick() {
-  activeMenu.value = 'orders'
-  loadOrders()
+  activeMenu.value = "orders";
+  loadOrders();
 }
-onMounted(() => {
-  onFeedbackClick()
-  // 调完我的接单后打印
-  setTimeout(() => {
-    console.log('返回原始 data:', orderPosts.value)
-  }, 500)
-})
-onMounted(() => {
-  onFeedbackClick() // 首次自动拉一次
+function onPostsClick() {
+  activeMenu.value = "posts";
+  loadAllPosts();
 }
-)
+function onAuditClick() {
+  activeMenu.value = "audit";
+  loadAudit();
+}
+
+onMounted(() => {
+  onFeedbackClick(); // 默认先显示“查看反馈”
+});
 </script>
+
 <style scoped>
+/* 完全复用 admhome 的样式，保持一致 */
 .top-bar {
   position: fixed;
   top: 0;
@@ -182,13 +398,10 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 10px 15px rgba(0, 0, 0, 0.2),
-    inset 0 1px 2px rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 10px 15px rgba(0, 0, 0, 0.2);
 }
 .platform-name {
   font-family: "Microsoft YaHei", sans-serif;
-  color: white;
 }
 .menu-bar {
   position: fixed;
@@ -201,7 +414,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   padding: 20px 0;
-  z-index: 1000;
+  z-index: 999;
 }
 .menu-item {
   padding: 10px 20px;
