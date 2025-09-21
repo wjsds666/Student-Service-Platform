@@ -4,7 +4,7 @@
     <div class="platform-name">超级管理员中心</div>
   </div>
 
-  <!-- 左侧菜单 -->
+  <!-- 左侧菜单：只保留“查看反馈”“我的接单” -->
   <div class="menu-bar">
     <div
       class="menu-item"
@@ -20,25 +20,11 @@
     >
       我的接单
     </div>
-    <div
-      class="menu-item"
-      :class="{ active: activeMenu === 'posts' }"
-      @click="onPostsClick"
-    >
-      所有帖子
-    </div>
-    <div
-      class="menu-item"
-      :class="{ active: activeMenu === 'audit' }"
-      @click="onAuditClick"
-    >
-      垃圾审核
-    </div>
   </div>
 
-  <!-- 右侧内容区 -->
+  <!-- 右侧内容区（全部保留，仅隐藏入口） -->
   <div class="content-container">
-    <!-- 1. 查看反馈（管理员原功能） -->
+    <!-- 1. 查看反馈 -->
     <div v-if="activeMenu === 'feedback'" class="content-panel">
       <h2>待处理反馈</h2>
       <div v-loading="loading" element-loading-text="加载中...">
@@ -65,7 +51,7 @@
       </div>
     </div>
 
-    <!-- 2. 我的接单（管理员原功能） -->
+    <!-- 2. 我的接单 -->
     <div v-if="activeMenu === 'orders'" class="content-panel">
       <h2>我的接单</h2>
       <div v-loading="loading" element-loading-text="加载中...">
@@ -92,7 +78,7 @@
       </div>
     </div>
 
-    <!-- 3. 所有帖子（超管专属：一键删除） -->
+    <!-- 3. 所有帖子（入口已删，页面仍保留） -->
     <div v-if="activeMenu === 'posts'" class="content-panel">
       <h2>所有帖子</h2>
       <div v-loading="loading" element-loading-text="加载中...">
@@ -113,7 +99,7 @@
       </div>
     </div>
 
-    <!-- 4. 垃圾审核（超管专属：驳回 / 删除） -->
+    <!-- 4. 垃圾审核（入口已删，页面仍保留） -->
     <div v-if="activeMenu === 'audit'" class="content-panel">
       <h2>垃圾信息审核</h2>
       <div v-loading="loading" element-loading-text="加载中...">
@@ -139,7 +125,7 @@
     </div>
   </div>
 
-  <!-- 大图弹窗（复用 admhome 样式） -->
+  <!-- 大图弹窗 -->
   <el-dialog v-model="showDlg" title="详情" width="700px" center>
     <el-carousel
       v-if="detail.picUrls?.length"
@@ -161,9 +147,9 @@
       <p class="meta">提交时间：{{ detail.createTime }}</p>
       <p class="meta">
         紧急程度：
-        <el-tag :type="detail.level === 1 ? 'danger' : 'info'">{{
-          detail.level === 1 ? "紧急" : "普通"
-        }}</el-tag>
+        <el-tag :type="detail.level === 1 ? 'danger' : 'info'">
+          {{ detail.level === 1 ? "紧急" : "普通" }}
+        </el-tag>
       </p>
       <p class="content">{{ detail.content }}</p>
       <p v-if="detail.response" class="response">
@@ -188,7 +174,6 @@
 import { ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { useUserStore } from "@/stores/user";
-// 沿用原 admhome 接口（死模板阶段）
 import { apiReportPost } from "@/api/report";
 import {
   apiGetAllPosts,
@@ -206,9 +191,6 @@ const loading = ref(false);
 /* ===== 数据 ===== */
 const feedbackPosts = ref([]);
 const orderPosts = ref([]);
-const auditPosts = ref([]);
-
-/* ===== 超管新增假数据 ===== */
 const allPosts = ref([
   {
     postId: 1,
@@ -227,7 +209,6 @@ const allPosts = ref([
     response: null,
   },
 ]);
-
 const reportList = ref([
   { postId: 3, title: "垃圾广告", reason: "内容无效", reporter: "学生A" },
   { postId: 4, title: "重复提交", reason: "恶意刷屏", reporter: "学生B" },
@@ -237,70 +218,37 @@ const reportList = ref([
 async function loadFeedback() {
   loading.value = true;
   try {
-    const { data } = await apiGetAllPosts({ state: 1 }); // 未接单
+    const { data } = await apiGetAllPosts({ state: 1 });
     feedbackPosts.value = data;
   } finally {
     loading.value = false;
   }
 }
-
 async function loadOrders() {
   loading.value = true;
   try {
-    const { data } = await apiSelectOrders({ state: 2 }); // 已接单
+    const { data } = await apiSelectOrders({ state: 2 });
     orderPosts.value = data;
   } finally {
     loading.value = false;
   }
 }
-
-/* ===== 新增：所有帖子 & 垃圾审核 ===== */
 async function loadAllPosts() {
   loading.value = true;
-  // 死数据：除已删除外全部
-  allPosts.value = [
-    {
-      postId: 1,
-      title: "宿舍灯坏了",
-      content: "A5-203 灯不亮",
-      level: 1,
-      createTime: "2025-06-20 09:30",
-      response: null,
-    },
-    {
-      postId: 2,
-      title: "空调太冷",
-      content: "三楼空调温度低",
-      level: 2,
-      createTime: "2025-06-19 16:00",
-      response: null,
-    },
-  ];
-  setTimeout(() => {
-    loading.value = false;
-  }, 300);
+  setTimeout(() => (loading.value = false), 300);
 }
-
 async function loadAudit() {
   loading.value = true;
-  // 死数据：被举报待审
-  reportList.value = [
-    { postId: 3, title: "垃圾广告", reason: "内容无效", reporter: "学生A" },
-    { postId: 4, title: "重复提交", reason: "恶意刷屏", reporter: "学生B" },
-  ];
-  setTimeout(() => {
-    loading.value = false;
-  }, 300);
+  setTimeout(() => (loading.value = false), 300);
 }
 
-/* ===== 弹窗（复用 admhome） ===== */
+/* ===== 弹窗 ===== */
 function openDetail(post) {
   detail.value = post;
   showDlg.value = true;
 }
 
 /* ===== 按钮事件 ===== */
-// 原管理员功能
 async function handleClaim(post) {
   try {
     await apiAcceptPost({ userId: userStore.userId, postId: post.postId });
@@ -310,7 +258,6 @@ async function handleClaim(post) {
     ElMessage.error(e?.response?.data?.msg || "接单失败");
   }
 }
-
 async function handleReply(post) {
   try {
     await apiReplyPost({
@@ -325,7 +272,6 @@ async function handleReply(post) {
     ElMessage.error(e?.response?.data?.msg || "回复失败");
   }
 }
-
 async function handleReport(post) {
   try {
     await apiReportPost({
@@ -340,25 +286,20 @@ async function handleReport(post) {
     ElMessage.error(e?.response?.data?.msg || "标记失败");
   }
 }
-
 function handleComplete(post) {
   ElMessage.success("已完成");
 }
-
-// 超管专属功能（死模板）
 async function handleDelete(post) {
   ElMessage.success("已删除（模板）");
   allPosts.value = allPosts.value.filter((p) => p.postId !== post.postId);
 }
-
-async function handleAuditReject(report) {
+async function handleAuditReject(r) {
   ElMessage.success("已驳回（模板）");
-  reportList.value = reportList.value.filter((r) => r.postId !== report.postId);
+  reportList.value = reportList.value.filter((x) => x.postId !== r.postId);
 }
-
-async function handleAuditDelete(report) {
+async function handleAuditDelete(r) {
   ElMessage.success("已删除并通过审核（模板）");
-  reportList.value = reportList.value.filter((r) => r.postId !== report.postId);
+  reportList.value = reportList.value.filter((x) => x.postId !== r.postId);
 }
 
 /* ===== 菜单切换 ===== */
@@ -379,13 +320,11 @@ function onAuditClick() {
   loadAudit();
 }
 
-onMounted(() => {
-  onFeedbackClick(); // 默认先显示“查看反馈”
-});
+onMounted(() => onFeedbackClick());
 </script>
 
 <style scoped>
-/* 完全复用 admhome 的样式，保持一致 */
+/* 样式与之前完全一致，已压缩节省篇幅 */
 .top-bar {
   position: fixed;
   top: 0;
@@ -393,7 +332,7 @@ onMounted(() => {
   width: 100%;
   height: 40px;
   background: linear-gradient(145deg, #333, #444);
-  color: white;
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -409,8 +348,8 @@ onMounted(() => {
   top: 40px;
   width: 120px;
   height: calc(100vh - 40px);
-  background-color: #333;
-  color: white;
+  background: #333;
+  color: #fff;
   display: flex;
   flex-direction: column;
   padding: 20px 0;
@@ -430,7 +369,7 @@ onMounted(() => {
   margin-left: 120px;
   padding: 20px;
   min-height: calc(100vh - 40px);
-  background-color: #f5f5f5;
+  background: #f5f5f5;
 }
 .content-panel h2 {
   margin-bottom: 20px;

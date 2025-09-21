@@ -14,3 +14,8 @@ export const apiDeletePost = (data) =>
   request.delete("/api/admin/post", { data });
 export const apiGetReports = () => request.get("/api/admin/reports");
 export const apiAuditReport = (data) => request.put("/api/admin/audit", data);
+import axios from "axios";
+
+// 查看自己帖子
+export const apiMyPosts = (userId) =>
+  axios.get("/api/user/student/post", { params: { userId } });
