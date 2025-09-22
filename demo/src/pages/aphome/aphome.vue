@@ -189,6 +189,7 @@ import {
   apiAcceptPost,
   apiReplyPost,
 } from "@/api/post";
+import { apiGetReports } from "@/api/report";
 
 const userStore = useUserStore();
 const activeMenu = ref("feedback");
@@ -245,7 +246,14 @@ async function loadAllPosts() {
 }
 async function loadAudit() {
   loading.value = true;
-  setTimeout(() => (loading.value = false), 300);
+  try {
+    const { data } = await apiGetReports(); // ← 接 Mock
+    reportList.value = data; // ← 直接赋值
+  } catch (e) {
+    ElMessage.error(e?.response?.data?.msg || "获取审核列表失败");
+  } finally {
+    loading.value = false;
+  }
 }
 
 function openDetail(post) {

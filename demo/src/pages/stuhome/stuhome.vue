@@ -95,7 +95,7 @@
       <h2>我的反馈</h2>
       <div
         class="card"
-        v-for="f in fakeFeedbacks"
+        v-for="f in feedbacks"
         :key="f.postId"
         @click="openDetail(f)"
       >
@@ -110,7 +110,7 @@
       </div>
     </div>
 
-    <!-- 3. 提交反馈 -->
+    <!-- 3. 提交反馈（含图片，无文字） -->
     <div v-if="activeMenu === 'new'" class="content-panel">
       <h2>提交新反馈</h2>
       <div class="card">
@@ -118,6 +118,7 @@
           <el-form-item label="标题">
             <el-input v-model="form.title" placeholder="给问题起个标题" />
           </el-form-item>
+
           <el-form-item label="内容">
             <el-input
               type="textarea"
@@ -126,6 +127,32 @@
               placeholder="详细描述问题"
             />
           </el-form-item>
+
+          <!-- 图片上传：无文字，只有方框+加号 -->
+          <el-form-item label="图片">
+            <div class="img-add-wrapper">
+              <div
+                class="img-box"
+                @click="triggerPicSelect"
+                v-if="picFiles.length < 3"
+              >
+                <span class="plus">+</span>
+              </div>
+              <input
+                ref="picInput"
+                type="file"
+                accept="image/*"
+                style="display: none"
+                @change="onPicChange"
+              />
+              <!-- 预览图 -->
+              <div v-for="(f, idx) in picFiles" :key="idx" class="img-preview">
+                <img :src="f.url" />
+                <span class="close" @click="removePic(idx)">×</span>
+              </div>
+            </div>
+          </el-form-item>
+
           <el-form-item label="紧急">
             <el-switch
               v-model="form.level"
@@ -140,6 +167,7 @@
               :inactive-value="2"
             />
           </el-form-item>
+
           <el-form-item>
             <el-button type="primary" @click="handleSubmit">提交</el-button>
           </el-form-item>
@@ -171,16 +199,45 @@
 </template>
 
 <script setup>
-/* ===== 头像（死模板） ===== */
-const avatarUrl = ref(""); // 预览地址
+import { ref, onMounted } from "vue";
+import { ElMessage } from "element-plus";
+import { useUserStore } from "@/stores/user";
+import { apiGetMyPosts, apiSubmitPost, apiUpdateProfile } from "@/api/post";
+import { apiUpdateAvatar } from "@/api/report";
 
-function onAvatarChange(e) {
-  const file = e.target.files?.[0];
-  if (!file) return;
-  avatarUrl.value = URL.createObjectURL(file);
+/* ---------- 用户信息 ---------- */
+const userStore = useUserStore();
+
+/* ---------- 菜单 ---------- */
+const activeMenu = ref("profile");
+function switchMenu(key) {
+  activeMenu.value = key;
+  if (key === "mine" && feedbacks.value.length === 0) {
+    loadMyPosts();
+  }
 }
 
-/* ===== 个人信息 ===== */
+/* ---------- 头像 ---------- */
+
+async function onAvatarChange(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  try {
+    // 1. 先本地预览（瞬间）
+    avatarUrl.value = URL.createObjectURL(file);
+
+    // 2. 上传头像
+    const { data } = await apiUpdateAvatar(file);
+    // 3. 用返回的真实地址更新头像
+    avatarUrl.value = data.avatarUrl;
+    ElMessage.success("头像更新成功");
+  } catch (err) {
+    ElMessage.error(err?.response?.data?.msg || "头像上传失败");
+    avatarUrl.value = ""; // 恢复为空
+  }
+}
+/* ---------- 个人信息 ---------- */
 const profile = ref({
   name: "张三",
   college: "计算机学院",
@@ -189,17 +246,14 @@ const profile = ref({
   phone: "13800138000",
   email: "zhangsan@mail.com",
 });
-
-const saveLoading = ref(false); // 防止重复点击
+const saveLoading = ref(false);
 async function handleSave() {
   saveLoading.value = true;
   try {
-    // 1. 调接口（Apifox 本地 Mock）
     const { data } = await apiUpdateProfile({
       userId: userStore.userId,
       ...profile.value,
     });
-    // 2. 用返回的数据回显（Apifox 会把完整字段返给你）
     Object.assign(profile.value, data);
     ElMessage.success("个人信息已更新");
   } catch (e) {
@@ -209,74 +263,74 @@ async function handleSave() {
   }
 }
 
-import { ref } from "vue";
-import { ElMessage } from "element-plus";
-import { useUserStore } from "@/stores/user";
-// 取当前登录学生的 userId
-const userStore = useUserStore(); // ← 新增
-import { apiSubmitPost } from "@/api/post"; // 我们刚封装的发布接口
-import { apiUpdateProfile } from "@/api/user"; // 顶部引入
-/* ===== 菜单 ===== */
-const activeMenu = ref("profile");
-function switchMenu(key) {
-  activeMenu.value = key;
+/* ---------- 我的反馈 ---------- */
+const feedbacks = ref([]);
+async function loadMyPosts() {
+  const { data } = await apiGetMyPosts(userStore.userId);
+  feedbacks.value = data;
 }
 
-/* ===== 假数据 ===== */
-const fakeFeedbacks = ref([
-  {
-    postId: 1,
-    title: "宿舍灯坏了",
-    content: "A5-203 房顶灯管不亮，请尽快维修，谢谢！",
-    level: 1,
-    createTime: "2025-06-20 09:30",
-    response: "已安排师傅，今晚 7 点到场。",
-  },
-  {
-    postId: 2,
-    title: "图书馆空调太冷",
-    content: "三楼自习室空调温度过低，能否调高一点？",
-    level: 2,
-    createTime: "2025-06-19 16:00",
-    response: null,
-  },
-]);
-
-/* ===== 提交反馈假表单 ===== */
+/* ---------- 提交反馈（含图片） ---------- */
 const form = ref({
   title: "",
   content: "",
   level: 2,
   hide: 2,
 });
+// 本地图片列表
+const picFiles = ref([]);
+// 触发选图
+function triggerPicSelect() {
+  picInput.value?.click();
+}
+// 选图回调
+const picInput = ref();
+function onPicChange(e) {
+  const files = Array.from(e.target.files);
+  if (!files.length) return;
+  // 最多 3 张
+  const left = 3 - picFiles.value.length;
+  const toAdd = files.slice(0, left);
+  toAdd.forEach((f) => {
+    picFiles.value.push({ file: f, url: URL.createObjectURL(f) });
+  });
+  // 清空 input，允许重复选同一张
+  e.target.value = "";
+}
+// 删除预览
+function removePic(idx) {
+  URL.revokeObjectURL(picFiles.value[idx].url);
+  picFiles.value.splice(idx, 1);
+}
+
 async function handleSubmit() {
   if (!form.value.title || !form.value.content) {
     ElMessage.warning("请填标题和内容");
     return;
   }
-
-  const payload = {
-    userId: userStore.userId,
-    title: form.value.title,
-    content: form.value.content,
-    level: form.value.level, // 1=紧急  2=普通
-    hide: form.value.hide, // 1=匿名  2=不匿名
-  };
+  // 构造 FormData，支持多图
+  const fd = new FormData();
+  fd.append("userId", userStore.userId);
+  fd.append("title", form.value.title);
+  fd.append("content", form.value.content);
+  fd.append("level", form.value.level);
+  fd.append("hide", form.value.hide);
+  picFiles.value.forEach((f) => fd.append("pics", f.file));
 
   try {
-    // 真正连后端（Apifox 云端）
-    await apiSubmitPost(payload);
-    ElMessage.success("提交成功"); // ← 成功弹窗
-    form.value.title = "";
-    form.value.content = "";
-    switchMenu("mine"); // 可选：立即跳到“我的反馈”
+    await apiSubmitPost(fd); // 后端接口需支持 multipart/form-data
+    ElMessage.success("提交成功");
+    // 重置表单
+    form.value = { title: "", content: "", level: 2, hide: 2 };
+    picFiles.value = [];
+    await loadMyPosts();
+    switchMenu("mine");
   } catch (e) {
-    // 任何错误（500/网络/超时）都进这里
     ElMessage.error(e?.response?.data?.msg || "提交失败");
   }
 }
 
-/* ===== 弹窗 ===== */
+/* ---------- 详情弹窗 ---------- */
 const showDlg = ref(false);
 const detail = ref({});
 function openDetail(item) {
@@ -286,7 +340,7 @@ function openDetail(item) {
 </script>
 
 <style scoped>
-/* 完全复用 admhome 的样式，保持一致 */
+/* 原来 stuhome.css 里的内容原封不动搬过来 */
 .top-bar {
   position: fixed;
   top: 0;
@@ -411,5 +465,58 @@ function openDetail(item) {
 .avatar-placeholder {
   color: #999;
   font-size: 14px;
+}
+
+/* 图片上传样式（无文字） */
+.img-add-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.img-box {
+  width: 80px;
+  height: 80px;
+  border: 2px dashed #dcdfe6;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.3s;
+}
+.img-box:hover {
+  border-color: #409eff;
+}
+.plus {
+  font-size: 24px;
+  color: #909399;
+}
+.img-preview {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #dcdfe6;
+}
+.img-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.close {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 16px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  text-align: center;
+  line-height: 18px;
+  cursor: pointer;
 }
 </style>
