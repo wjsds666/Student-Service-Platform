@@ -1,7 +1,7 @@
 <template>
   <!-- 顶部条 -->
   <div class="top-bar">
-    <div class="platform-name">超级管理员中心</div>
+    <div class="platform-name">管理员中心</div>
   </div>
 
   <!-- 左侧菜单：只保留“查看反馈”“我的接单” -->

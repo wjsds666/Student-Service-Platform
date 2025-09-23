@@ -4,7 +4,7 @@
     <div class="platform-name">超级管理员中心</div>
   </div>
 
-  <!-- 左侧菜单：已删“所有帖子”入口 -->
+  <!-- 左侧菜单 -->
   <div class="menu-bar">
     <div
       class="menu-item"
@@ -31,7 +31,7 @@
 
   <!-- 右侧内容区 -->
   <div class="content-container">
-    <!-- 1. 查看反馈（删除“标记”按钮） -->
+    <!-- 1. 查看反馈 -->
     <div v-if="activeMenu === 'feedback'" class="content-panel">
       <h2>待处理反馈</h2>
       <div v-loading="loading" element-loading-text="加载中...">
@@ -50,7 +50,6 @@
             <button class="action-btn" @click.stop="handleReply(p)">
               回复
             </button>
-            <!-- ❌ 删除“标记”按钮 -->
             <button class="action-btn danger" @click.stop="handleDelete(p)">
               删除
             </button>
@@ -59,7 +58,7 @@
       </div>
     </div>
 
-    <!-- 2. 我的接单（删除“标记”按钮） -->
+    <!-- 2. 我的接单 -->
     <div v-if="activeMenu === 'orders'" class="content-panel">
       <h2>我的接单</h2>
       <div v-loading="loading" element-loading-text="加载中...">
@@ -78,13 +77,12 @@
             <button class="action-btn" @click.stop="handleReply(p)">
               回复
             </button>
-            <!-- ❌ 删除“标记”按钮 -->
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 3. 所有帖子（入口已删，页面仍保留，删除“标记”按钮） -->
+    <!-- 3. 所有帖子（入口已删，页面仍保留） -->
     <div v-if="activeMenu === 'posts'" class="content-panel">
       <h2>所有帖子</h2>
       <div v-loading="loading" element-loading-text="加载中...">
@@ -97,7 +95,6 @@
           <div class="card-header">{{ p.title }}</div>
           <div class="card-body">{{ p.content }}</div>
           <div class="card-footer">
-            <!-- ❌ 删除“标记”按钮 -->
             <button class="action-btn danger" @click.stop="handleDelete(p)">
               删除
             </button>
@@ -106,9 +103,39 @@
       </div>
     </div>
 
-    <!-- 4. 垃圾审核（删除“标记”按钮） -->
+    <!-- 4. 垃圾审核（含「被管理员标记的帖子」卡片） -->
     <div v-if="activeMenu === 'audit'" class="content-panel">
       <h2>垃圾信息审核</h2>
+
+      <!-- 被管理员标记的帖子卡片 -->
+      <div class="card admin-marked" v-if="adminMarked">
+        <div class="card-header">管理员已标记</div>
+        <div class="card-body">
+          <p><strong>标题：</strong>{{ adminMarked.title }}</p>
+          <p><strong>内容：</strong>{{ adminMarked.content }}</p>
+          <p><strong>标记人：</strong>{{ adminMarked.reporter }}</p>
+          <p><strong>理由：</strong>{{ adminMarked.reason }}</p>
+          <p><strong>时间：</strong>{{ adminMarked.createTime }}</p>
+          <p>
+            紧急程度：
+            <el-tag :type="adminMarked.level === 1 ? 'danger' : 'info'">
+              {{ adminMarked.level === 1 ? "紧急" : "普通" }}
+            </el-tag>
+          </p>
+        </div>
+        <div class="card-footer">
+          <button class="action-btn" @click="handleAuditReject(adminMarked)">
+            驳回
+          </button>
+          <button
+            class="action-btn danger"
+            @click="handleAuditDelete(adminMarked)"
+          >
+            删除
+          </button>
+        </div>
+      </div>
+
       <div v-loading="loading" element-loading-text="加载中...">
         <div class="card" v-for="r in reportList" :key="r.postId">
           <div class="card-header">{{ r.title }}</div>
@@ -126,7 +153,6 @@
             >
               删除
             </button>
-            <!-- ❌ 删除“标记”按钮 -->
           </div>
         </div>
       </div>
@@ -197,6 +223,7 @@ const showDlg = ref(false);
 const detail = ref({});
 const loading = ref(false);
 
+/* ---------- 数据 ---------- */
 const feedbackPosts = ref([]);
 const orderPosts = ref([]);
 const allPosts = ref([
@@ -222,6 +249,10 @@ const reportList = ref([
   { postId: 4, title: "重复提交", reason: "恶意刷屏", reporter: "学生B" },
 ]);
 
+// 被管理员标记的帖子（顶部卡片）
+const adminMarked = ref(null);
+
+/* ---------- 拉取函数 ---------- */
 async function loadFeedback() {
   loading.value = true;
   try {
@@ -247,8 +278,10 @@ async function loadAllPosts() {
 async function loadAudit() {
   loading.value = true;
   try {
-    const { data } = await apiGetReports(); // ← 接 Mock
-    reportList.value = data; // ← 直接赋值
+    const { data } = await apiGetReports();
+    reportList.value = data;
+    // 取第一条作为管理员标记的帖子
+    adminMarked.value = data.length ? data[0] : null;
   } catch (e) {
     ElMessage.error(e?.response?.data?.msg || "获取审核列表失败");
   } finally {
@@ -256,11 +289,13 @@ async function loadAudit() {
   }
 }
 
+/* ---------- 弹窗 ---------- */
 function openDetail(post) {
   detail.value = post;
   showDlg.value = true;
 }
 
+/* ---------- 按钮事件 ---------- */
 async function handleClaim(post) {
   try {
     await apiAcceptPost({ userId: userStore.userId, postId: post.postId });
@@ -284,22 +319,26 @@ async function handleReply(post) {
     ElMessage.error(e?.response?.data?.msg || "回复失败");
   }
 }
-/* ❌ 删除 handleReport 函数及其模板调用 */
 async function handleDelete(post) {
   const target = activeMenu.value === "feedback" ? feedbackPosts : allPosts;
   target.value = target.value.filter((p) => p.postId !== post.postId);
   ElMessage.success("已删除");
 }
-
+async function handleComplete(post) {
+  ElMessage.success("已完成");
+}
 async function handleAuditReject(r) {
   reportList.value = reportList.value.filter((x) => x.postId !== r.postId);
+  adminMarked.value = reportList.value.length ? reportList.value[0] : null;
   ElMessage.success("已驳回");
 }
 async function handleAuditDelete(r) {
   reportList.value = reportList.value.filter((x) => x.postId !== r.postId);
+  adminMarked.value = reportList.value.length ? reportList.value[0] : null;
   ElMessage.success("已删除并通过审核");
 }
 
+/* ---------- 菜单切换 ---------- */
 function onFeedbackClick() {
   activeMenu.value = "feedback";
   loadFeedback();
@@ -321,7 +360,7 @@ onMounted(() => onFeedbackClick());
 </script>
 
 <style scoped>
-/* 样式与之前完全一致，已压缩节省篇幅 */
+/* 与原来完全一致，已包含 admin-marked 边框色 */
 .top-bar {
   position: fixed;
   top: 0;
@@ -444,5 +483,10 @@ onMounted(() => onFeedbackClick());
 .gallery-img {
   width: 100%;
   border-radius: 6px;
+}
+
+/* 被管理员标记的帖子左侧边框高亮 */
+.admin-marked {
+  border-left: 4px solid #f56c6c;
 }
 </style>
