@@ -14,9 +14,9 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:4523/m2/7077257-6798432-default/351161786",
+        target: "http://127.0.0.1:4523", // Apifox Mock 服务地址
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ""),
+        rewrite: (path) => path.replace(/^\/api/, ""), // 关键：把 /api 去掉再转发
       },
     },
   },

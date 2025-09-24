@@ -4,7 +4,6 @@
     <div class="platform-name">学生服务平台</div>
   </div>
 
-  <!-- 左侧菜单 -->
   <div class="menu-bar">
     <div
       class="menu-item"
@@ -29,16 +28,46 @@
     </div>
   </div>
 
-  <!-- 右侧内容区 -->
   <div class="content-container">
-    <!-- 1. 个人信息 -->
+    <!-- ===== 我的反馈（管理员同款卡片） ===== -->
+    <div v-if="activeMenu === 'mine'" class="content-panel">
+      <h2>我的反馈</h2>
+      <div v-loading="loading" element-loading-text="加载中...">
+        <!-- 无数据 -->
+        <div
+          v-if="feedbacks.length === 0"
+          style="color: #999; text-align: center; padding: 40px"
+        >
+          暂无反馈记录
+        </div>
+        <!-- 卡片列表 -->
+        <div
+          v-for="f in feedbacks"
+          :key="f.postId"
+          class="card"
+          @click="openDetail(f)"
+        >
+          <div class="card-header">{{ f.title }}</div>
+          <div class="card-body">{{ f.content }}</div>
+          <div class="card-footer">
+            <el-tag :type="f.level === 1 ? 'danger' : 'info'">{{
+              f.level === 1 ? "紧急" : "普通"
+            }}</el-tag>
+            <span style="margin-left: auto; font-size: 13px; color: #666"
+              >提交于 {{ f.createTime }}</span
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 个人信息 -->
     <div v-if="activeMenu === 'profile'" class="content-panel">
       <h2>个人信息</h2>
       <div
         class="card"
         style="display: flex; align-items: flex-start; gap: 24px"
       >
-        <!-- 左侧圆形头像 -->
         <div class="avatar-box">
           <input
             ref="fileInput"
@@ -52,73 +81,47 @@
             <div v-else class="avatar-placeholder">点击添加头像</div>
           </div>
         </div>
-
-        <!-- 右侧表单 -->
         <el-form label-width="80px" style="flex: 1">
-          <el-form-item label="姓名">
-            <el-input v-model="profile.name" placeholder="请输入姓名" />
-          </el-form-item>
-          <el-form-item label="学院">
-            <el-input v-model="profile.college" placeholder="请输入学院" />
-          </el-form-item>
-          <el-form-item label="专业">
-            <el-input v-model="profile.major" placeholder="请输入专业" />
-          </el-form-item>
-          <el-form-item label="班级">
-            <el-input v-model="profile.class" placeholder="请输入班级" />
-          </el-form-item>
-          <el-form-item label="手机">
-            <el-input v-model="profile.phone" placeholder="请输入手机" />
-          </el-form-item>
-          <el-form-item label="邮箱">
-            <el-input v-model="profile.email" placeholder="请输入邮箱" />
-          </el-form-item>
-
-          <!-- 保存按钮 -->
+          <el-form-item label="姓名"
+            ><el-input v-model="profile.name" placeholder="请输入姓名"
+          /></el-form-item>
+          <el-form-item label="学院"
+            ><el-input v-model="profile.college" placeholder="请输入学院"
+          /></el-form-item>
+          <el-form-item label="专业"
+            ><el-input v-model="profile.major" placeholder="请输入专业"
+          /></el-form-item>
+          <el-form-item label="班级"
+            ><el-input v-model="profile.class" placeholder="请输入班级"
+          /></el-form-item>
+          <el-form-item label="手机"
+            ><el-input v-model="profile.phone" placeholder="请输入手机"
+          /></el-form-item>
+          <el-form-item label="邮箱"
+            ><el-input v-model="profile.email" placeholder="请输入邮箱"
+          /></el-form-item>
           <el-form-item label=" ">
             <div style="width: 100%; display: flex; justify-content: center">
               <el-button
                 type="primary"
-                @click="handleSave"
                 :loading="saveLoading"
+                @click="handleSave"
+                >保存</el-button
               >
-                保存
-              </el-button>
             </div>
           </el-form-item>
         </el-form>
       </div>
     </div>
 
-    <!-- 2. 我的反馈 -->
-    <div v-if="activeMenu === 'mine'" class="content-panel">
-      <h2>我的反馈</h2>
-      <div
-        class="card"
-        v-for="f in feedbacks"
-        :key="f.postId"
-        @click="openDetail(f)"
-      >
-        <div class="card-header">{{ f.title }}</div>
-        <div class="card-body">{{ f.content }}</div>
-        <div class="card-footer">
-          <el-tag :type="f.level === 1 ? 'danger' : 'info'">
-            {{ f.level === 1 ? "紧急" : "普通" }}
-          </el-tag>
-          <span style="margin-left: auto">提交于 {{ f.createTime }}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- 3. 提交反馈（含图片，无文字） -->
+    <!-- 提交反馈 -->
     <div v-if="activeMenu === 'new'" class="content-panel">
       <h2>提交新反馈</h2>
       <div class="card">
         <el-form label-width="80px">
-          <el-form-item label="标题">
-            <el-input v-model="form.title" placeholder="给问题起个标题" />
-          </el-form-item>
-
+          <el-form-item label="标题"
+            ><el-input v-model="form.title" placeholder="给问题起个标题"
+          /></el-form-item>
           <el-form-item label="内容">
             <el-input
               type="textarea"
@@ -127,14 +130,12 @@
               placeholder="详细描述问题"
             />
           </el-form-item>
-
-          <!-- 图片上传：无文字，只有方框+加号 -->
           <el-form-item label="图片">
             <div class="img-add-wrapper">
               <div
+                v-if="picFiles.length < 3"
                 class="img-box"
                 @click="triggerPicSelect"
-                v-if="picFiles.length < 3"
               >
                 <span class="plus">+</span>
               </div>
@@ -145,14 +146,12 @@
                 style="display: none"
                 @change="onPicChange"
               />
-              <!-- 预览图 -->
               <div v-for="(f, idx) in picFiles" :key="idx" class="img-preview">
                 <img :src="f.url" />
                 <span class="close" @click="removePic(idx)">×</span>
               </div>
             </div>
           </el-form-item>
-
           <el-form-item label="紧急">
             <el-switch
               v-model="form.level"
@@ -167,7 +166,6 @@
               :inactive-value="2"
             />
           </el-form-item>
-
           <el-form-item>
             <el-button type="primary" @click="handleSubmit">提交</el-button>
           </el-form-item>
@@ -199,45 +197,27 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref } from "vue";
 import { ElMessage } from "element-plus";
 import { useUserStore } from "@/stores/user";
-import { apiGetMyPosts, apiSubmitPost, apiUpdateProfile } from "@/api/post";
-import { apiUpdateAvatar } from "@/api/report";
+import axios from "axios";
 
-/* ---------- 用户信息 ---------- */
 const userStore = useUserStore();
-
-/* ---------- 菜单 ---------- */
 const activeMenu = ref("profile");
 function switchMenu(key) {
   activeMenu.value = key;
-  if (key === "mine" && feedbacks.value.length === 0) {
-    loadMyPosts();
-  }
+  if (key === "mine") loadMyPosts();
 }
 
-/* ---------- 头像 ---------- */
-
-async function onAvatarChange(e) {
+/* ---- 头像 ---- */
+const avatarUrl = ref("");
+function onAvatarChange(e) {
   const file = e.target.files?.[0];
   if (!file) return;
-
-  try {
-    // 1. 先本地预览（瞬间）
-    avatarUrl.value = URL.createObjectURL(file);
-
-    // 2. 上传头像
-    const { data } = await apiUpdateAvatar(file);
-    // 3. 用返回的真实地址更新头像
-    avatarUrl.value = data.avatarUrl;
-    ElMessage.success("头像更新成功");
-  } catch (err) {
-    ElMessage.error(err?.response?.data?.msg || "头像上传失败");
-    avatarUrl.value = ""; // 恢复为空
-  }
+  avatarUrl.value = URL.createObjectURL(file);
 }
-/* ---------- 个人信息 ---------- */
+
+/* ---- 个人信息 ---- */
 const profile = ref({
   name: "张三",
   college: "计算机学院",
@@ -249,66 +229,55 @@ const profile = ref({
 const saveLoading = ref(false);
 async function handleSave() {
   saveLoading.value = true;
+  ElMessage.success("保存成功（mock）");
+  saveLoading.value = false;
+}
+
+/* ---- 我的反馈 ---- */
+const feedbacks = ref([]);
+const loading = ref(false);
+async function loadMyPosts() {
+  loading.value = true;
   try {
-    const { data } = await apiUpdateProfile({
-      userId: userStore.userId,
-      ...profile.value,
+    const { data } = await axios.get("/user/student/post", {
+      params: { userId: userStore.userId },
     });
-    Object.assign(profile.value, data);
-    ElMessage.success("个人信息已更新");
-  } catch (e) {
-    ElMessage.error(e?.response?.data?.msg || "更新失败");
+    feedbacks.value = data.data || data || [];
   } finally {
-    saveLoading.value = false;
+    loading.value = false;
   }
 }
 
-/* ---------- 我的反馈 ---------- */
-const feedbacks = ref([]);
-async function loadMyPosts() {
-  const { data } = await apiGetMyPosts(userStore.userId);
-  feedbacks.value = data;
-}
-
-/* ---------- 提交反馈（含图片） ---------- */
+/* ---- 提交反馈 ---- */
 const form = ref({
   title: "",
   content: "",
   level: 2,
   hide: 2,
 });
-// 本地图片列表
 const picFiles = ref([]);
-// 触发选图
+const picInput = ref();
 function triggerPicSelect() {
   picInput.value?.click();
 }
-// 选图回调
-const picInput = ref();
 function onPicChange(e) {
   const files = Array.from(e.target.files);
   if (!files.length) return;
-  // 最多 3 张
   const left = 3 - picFiles.value.length;
-  const toAdd = files.slice(0, left);
-  toAdd.forEach((f) => {
+  files.slice(0, left).forEach((f) => {
     picFiles.value.push({ file: f, url: URL.createObjectURL(f) });
   });
-  // 清空 input，允许重复选同一张
   e.target.value = "";
 }
-// 删除预览
 function removePic(idx) {
   URL.revokeObjectURL(picFiles.value[idx].url);
   picFiles.value.splice(idx, 1);
 }
-
 async function handleSubmit() {
   if (!form.value.title || !form.value.content) {
     ElMessage.warning("请填标题和内容");
     return;
   }
-  // 构造 FormData，支持多图
   const fd = new FormData();
   fd.append("userId", userStore.userId);
   fd.append("title", form.value.title);
@@ -316,21 +285,18 @@ async function handleSubmit() {
   fd.append("level", form.value.level);
   fd.append("hide", form.value.hide);
   picFiles.value.forEach((f) => fd.append("pics", f.file));
-
   try {
-    await apiSubmitPost(fd); // 后端接口需支持 multipart/form-data
+    await axios.post("/user/student/post", fd);
     ElMessage.success("提交成功");
-    // 重置表单
     form.value = { title: "", content: "", level: 2, hide: 2 };
     picFiles.value = [];
-    await loadMyPosts();
     switchMenu("mine");
   } catch (e) {
     ElMessage.error(e?.response?.data?.msg || "提交失败");
   }
 }
 
-/* ---------- 详情弹窗 ---------- */
+/* ---- 详情弹窗 ---- */
 const showDlg = ref(false);
 const detail = ref({});
 function openDetail(item) {
@@ -340,7 +306,7 @@ function openDetail(item) {
 </script>
 
 <style scoped>
-/* 原来 stuhome.css 里的内容原封不动搬过来 */
+/* -------------- 通用部分 -------------- */
 .top-bar {
   position: fixed;
   top: 0;
@@ -348,7 +314,7 @@ function openDetail(item) {
   width: 100%;
   height: 40px;
   background: linear-gradient(145deg, #333, #444);
-  color: white;
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -364,8 +330,8 @@ function openDetail(item) {
   top: 40px;
   width: 120px;
   height: calc(100vh - 40px);
-  background-color: #333;
-  color: white;
+  background: #333;
+  color: #fff;
   display: flex;
   flex-direction: column;
   padding: 20px 0;
@@ -374,24 +340,26 @@ function openDetail(item) {
 .menu-item {
   padding: 10px 20px;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: background 0.3s;
 }
 .menu-item:hover,
 .menu-item.active {
-  background-color: #555;
+  background: #555;
 }
 .content-container {
   margin-top: 40px;
   margin-left: 120px;
   padding: 20px;
   min-height: calc(100vh - 40px);
-  background-color: #f5f5f5;
+  background: #f5f5f5;
 }
 .content-panel h2 {
   margin-bottom: 20px;
   font-size: 20px;
   color: #333;
 }
+
+/* -------------- 卡片（管理员同款） -------------- */
 .card {
   background: #fff;
   border-radius: 8px;
@@ -413,12 +381,15 @@ function openDetail(item) {
   font-size: 14px;
   color: #666;
   margin-bottom: 15px;
+  line-height: 1.6;
 }
 .card-footer {
   display: flex;
   align-items: center;
   gap: 10px;
 }
+
+/* -------------- 其余原样 -------------- */
 .detail-info h3 {
   margin: 0 0 10px;
 }
@@ -466,8 +437,6 @@ function openDetail(item) {
   color: #999;
   font-size: 14px;
 }
-
-/* 图片上传样式（无文字） */
 .img-add-wrapper {
   display: flex;
   align-items: center;
