@@ -29,34 +29,26 @@
   </div>
 
   <div class="content-container">
-    <!-- ===== 我的反馈（管理员同款卡片） ===== -->
+    <!-- ===== 我的反馈（死数据 + 查看/回复按钮） ===== -->
     <div v-if="activeMenu === 'mine'" class="content-panel">
       <h2>我的反馈</h2>
-      <div v-loading="loading" element-loading-text="加载中...">
-        <!-- 无数据 -->
-        <div
-          v-if="feedbacks.length === 0"
-          style="color: #999; text-align: center; padding: 40px"
-        >
-          暂无反馈记录
+
+      <!-- 卡片列表 -->
+      <div v-for="f in feedbacks" :key="f.postId" class="card">
+        <div class="card-header">{{ f.title }}</div>
+        <div class="card-body">{{ f.content }}</div>
+        <div class="card-footer">
+          <el-tag :type="f.level === 1 ? 'danger' : 'info'">{{
+            f.level === 1 ? "紧急" : "普通"
+          }}</el-tag>
+          <span style="margin-left: auto; font-size: 13px; color: #666"
+            >提交于 {{ f.createTime }}</span
+          >
         </div>
-        <!-- 卡片列表 -->
-        <div
-          v-for="f in feedbacks"
-          :key="f.postId"
-          class="card"
-          @click="openDetail(f)"
-        >
-          <div class="card-header">{{ f.title }}</div>
-          <div class="card-body">{{ f.content }}</div>
-          <div class="card-footer">
-            <el-tag :type="f.level === 1 ? 'danger' : 'info'">{{
-              f.level === 1 ? "紧急" : "普通"
-            }}</el-tag>
-            <span style="margin-left: auto; font-size: 13px; color: #666"
-              >提交于 {{ f.createTime }}</span
-            >
-          </div>
+        <!-- 按钮行 -->
+        <div class="card-footer" style="margin-top: 10px">
+          <button class="action-btn" @click="openView(f)">查看</button>
+          <button class="action-btn" @click="openReply(f)">评价</button>
         </div>
       </div>
     </div>
@@ -174,50 +166,87 @@
     </div>
   </div>
 
-  <!-- 详情弹窗 -->
-  <el-dialog v-model="showDlg" title="反馈详情" width="600px">
+  <!-- ============================================================
+       查看弹窗（居中卡片）
+       ============================================================ -->
+  <el-dialog v-model="showViewDlg" title="反馈详情" width="600px" center>
     <div class="detail-info">
-      <h3>{{ detail.title }}</h3>
-      <p class="meta">提交时间：{{ detail.createTime }}</p>
+      <h3>{{ viewPost.title }}</h3>
+      <p class="meta">提交时间：{{ viewPost.createTime }}</p>
       <p class="meta">
-        紧急：
-        <el-tag :type="detail.level === 1 ? 'danger' : 'info'">
-          {{ detail.level === 1 ? "紧急" : "普通" }}
+        紧急程度：
+        <el-tag :type="viewPost.level === 1 ? 'danger' : 'info'">
+          {{ viewPost.level === 1 ? "紧急" : "普通" }}
         </el-tag>
       </p>
-      <p class="content">{{ detail.content }}</p>
-      <p v-if="detail.response" class="response">
-        管理员回复：{{ detail.response }}
-      </p>
+      <p class="content">{{ viewPost.content }}</p>
+
+      <!-- 管理员回复框 -->
+      <div class="response-box">
+        <div class="response-title">管理员回复</div>
+        <div class="response-content">
+          {{ viewPost.response || "管理员还未回复，请耐心等待" }}
+        </div>
+      </div>
     </div>
+
+    <!-- 关闭按钮：正下方 -->
     <template #footer>
-      <el-button @click="showDlg = false">关闭</el-button>
+      <div style="text-align: center">
+        <el-button @click="showViewDlg = false">关闭</el-button>
+      </div>
+    </template>
+  </el-dialog>
+
+  <!-- ============================================================
+       回复弹窗（居中输入卡片）
+       ============================================================ -->
+  <el-dialog v-model="showReplyDlg" title="我要评价" width="500px" center>
+    <el-input
+      v-model="replyText"
+      type="textarea"
+      :rows="5"
+      placeholder="请输入你要回复的内容"
+    />
+    <template #footer>
+      <div style="text-align: center">
+        <el-button type="primary" @click="submitReply">提交</el-button>
+        <el-button @click="showReplyDlg = false">关闭</el-button>
+      </div>
     </template>
   </el-dialog>
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { useUserStore } from "@/stores/user";
-import axios from "axios";
+import { apiGetMyPosts, apiSubmitPost, apiUpdateProfile } from "@/api/post";
+import { apiUpdateAvatar } from "@/api/report";
 
 const userStore = useUserStore();
 const activeMenu = ref("profile");
 function switchMenu(key) {
   activeMenu.value = key;
-  if (key === "mine") loadMyPosts();
+  if (key === "mine" && feedbacks.value.length === 0) loadMyPosts();
 }
 
 /* ---- 头像 ---- */
 const avatarUrl = ref("");
-function onAvatarChange(e) {
+async function onAvatarChange(e) {
   const file = e.target.files?.[0];
   if (!file) return;
-  avatarUrl.value = URL.createObjectURL(file);
+  try {
+    avatarUrl.value = URL.createObjectURL(file);
+    const { data } = await apiUpdateAvatar(file);
+    avatarUrl.value = data.avatarUrl;
+    ElMessage.success("头像更新成功");
+  } catch (err) {
+    ElMessage.error(err?.response?.data?.msg || "头像上传失败");
+    avatarUrl.value = "";
+  }
 }
 
-/* ---- 个人信息 ---- */
 const profile = ref({
   name: "张三",
   college: "计算机学院",
@@ -229,20 +258,56 @@ const profile = ref({
 const saveLoading = ref(false);
 async function handleSave() {
   saveLoading.value = true;
-  ElMessage.success("保存成功（mock）");
-  saveLoading.value = false;
+  try {
+    const { data } = await apiUpdateProfile({
+      userId: userStore.userId,
+      ...profile.value,
+    });
+    Object.assign(profile.value, data);
+    ElMessage.success("个人信息已更新");
+  } catch (e) {
+    ElMessage.error(e?.response?.data?.msg || "更新失败");
+  } finally {
+    saveLoading.value = false;
+  }
 }
 
-/* ---- 我的反馈 ---- */
-const feedbacks = ref([]);
+/* ---- 我的反馈（死数据） ---- */
+const feedbacks = ref([
+  {
+    postId: 1,
+    title: "宿舍灯坏了",
+    content: "A5-203 灯不亮，晚上出行不方便，希望尽快维修。",
+    level: 1,
+    createTime: "2025-06-20 09:30",
+    response: "已安排维修，预计今晚完成。",
+  },
+  {
+    postId: 2,
+    title: "空调漏水",
+    content: "图书馆三楼空调滴水，影响自习，请处理。",
+    level: 2,
+    createTime: "2025-06-19 16:00",
+    response: "",
+  },
+  {
+    postId: 3,
+    title: "水龙头损坏",
+    content: "东区食堂洗手池水龙头无法关闭，浪费水资源。",
+    level: 1,
+    createTime: "2025-06-18 12:00",
+    response: "后勤已更换新龙头。",
+  },
+]);
 const loading = ref(false);
+
 async function loadMyPosts() {
   loading.value = true;
   try {
-    const { data } = await axios.get("/user/student/post", {
-      params: { userId: userStore.userId },
-    });
-    feedbacks.value = data.data || data || [];
+    const { data } = await apiGetMyPosts(userStore.userId); // ③ 调接口
+    feedbacks.value = data.data || data || []; // ④ 赋值
+  } catch (e) {
+    ElMessage.error(e?.response?.data?.msg || "获取列表失败");
   } finally {
     loading.value = false;
   }
@@ -286,17 +351,43 @@ async function handleSubmit() {
   fd.append("hide", form.value.hide);
   picFiles.value.forEach((f) => fd.append("pics", f.file));
   try {
-    await axios.post("/user/student/post", fd);
+    await apiSubmitPost(fd);
     ElMessage.success("提交成功");
     form.value = { title: "", content: "", level: 2, hide: 2 };
     picFiles.value = [];
+    await loadMyPosts();
     switchMenu("mine");
   } catch (e) {
     ElMessage.error(e?.response?.data?.msg || "提交失败");
   }
 }
 
-/* ---- 详情弹窗 ---- */
+/* ---- 查看弹窗 ---- */
+const showViewDlg = ref(false);
+const viewPost = ref({});
+function openView(p) {
+  viewPost.value = p;
+  showViewDlg.value = true;
+}
+
+/* ---- 回复弹窗 ---- */
+const showReplyDlg = ref(false);
+const replyText = ref("");
+const currentReplyPost = ref({});
+function openReply(p) {
+  currentReplyPost.value = p;
+  replyText.value = "";
+  showReplyDlg.value = true;
+}
+function submitReply() {
+  if (!replyText.value.trim()) {
+    ElMessage.warning("请输入回复内容");
+    return;
+  }
+  // 仅本地提示
+  ElMessage.success("回复已提交（本地演示）");
+  showReplyDlg.value = false;
+}
 const showDlg = ref(false);
 const detail = ref({});
 function openDetail(item) {
@@ -306,7 +397,7 @@ function openDetail(item) {
 </script>
 
 <style scoped>
-/* -------------- 通用部分 -------------- */
+/* -------------- 通用 -------------- */
 .top-bar {
   position: fixed;
   top: 0;
@@ -359,7 +450,7 @@ function openDetail(item) {
   color: #333;
 }
 
-/* -------------- 卡片（管理员同款） -------------- */
+/* 卡片 */
 .card {
   background: #fff;
   border-radius: 8px;
@@ -389,7 +480,25 @@ function openDetail(item) {
   gap: 10px;
 }
 
-/* -------------- 其余原样 -------------- */
+/* 按钮 */
+.action-btn {
+  padding: 8px 16px;
+  font-size: 14px;
+  background: #000;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.action-btn:hover {
+  background: #333;
+}
+
+/* 详情弹窗 */
+.detail-info {
+  padding: 10px 0;
+}
 .detail-info h3 {
   margin: 0 0 10px;
 }
@@ -402,14 +511,25 @@ function openDetail(item) {
   margin: 10px 0;
   line-height: 1.6;
 }
-.response {
-  margin-top: 10px;
-  padding: 10px;
-  background: #f5f7fa;
-  border-radius: 4px;
-  font-size: 14px;
-  color: #333;
+
+/* 管理员回复框 */
+.response-box {
+  margin-top: 15px;
+  border: 1px solid #dcdfe6;
+  border-radius: 6px;
+  padding: 12px;
+  background: #fafafa;
 }
+.response-title {
+  font-weight: bold;
+  margin-bottom: 6px;
+  color: #303133;
+}
+.response-content {
+  color: #606266;
+}
+
+/* 其余原样 */
 .avatar-box {
   flex-shrink: 0;
 }
