@@ -29,11 +29,9 @@
   </div>
 
   <div class="content-container">
-    <!-- ===== 我的反馈（死数据 + 查看/回复按钮） ===== -->
+    <!-- ===== 我的反馈 ===== -->
     <div v-if="activeMenu === 'mine'" class="content-panel">
       <h2>我的反馈</h2>
-
-      <!-- 卡片列表 -->
       <div v-for="f in feedbacks" :key="f.postId" class="card">
         <div class="card-header">{{ f.title }}</div>
         <div class="card-body">{{ f.content }}</div>
@@ -45,7 +43,6 @@
             >提交于 {{ f.createTime }}</span
           >
         </div>
-        <!-- 按钮行 -->
         <div class="card-footer" style="margin-top: 10px">
           <button class="action-btn" @click="openView(f)">查看</button>
           <button class="action-btn" @click="openReply(f)">评价</button>
@@ -166,9 +163,7 @@
     </div>
   </div>
 
-  <!-- ============================================================
-       查看弹窗（居中卡片）
-       ============================================================ -->
+  <!-- 查看弹窗 -->
   <el-dialog v-model="showViewDlg" title="反馈详情" width="600px" center>
     <div class="detail-info">
       <h3>{{ viewPost.title }}</h3>
@@ -180,8 +175,6 @@
         </el-tag>
       </p>
       <p class="content">{{ viewPost.content }}</p>
-
-      <!-- 管理员回复框 -->
       <div class="response-box">
         <div class="response-title">管理员回复</div>
         <div class="response-content">
@@ -189,8 +182,6 @@
         </div>
       </div>
     </div>
-
-    <!-- 关闭按钮：正下方 -->
     <template #footer>
       <div style="text-align: center">
         <el-button @click="showViewDlg = false">关闭</el-button>
@@ -198,15 +189,22 @@
     </template>
   </el-dialog>
 
-  <!-- ============================================================
-       回复弹窗（居中输入卡片）
-       ============================================================ -->
+  <!-- 评价弹窗：星级 + 文字 -->
   <el-dialog v-model="showReplyDlg" title="我要评价" width="500px" center>
+    <div style="margin-bottom: 12px">
+      <span style="margin-right: 8px">满意度：</span>
+      <el-rate
+        v-model="replyStar"
+        :colors="['#99A9BF', '#F7BA2A', '#FF9900']"
+        show-score
+        score-template="{value} 分"
+      />
+    </div>
     <el-input
       v-model="replyText"
       type="textarea"
-      :rows="5"
-      placeholder="请输入你要回复的内容"
+      :rows="4"
+      placeholder="请输入文字评价（选填）"
     />
     <template #footer>
       <div style="text-align: center">
@@ -221,29 +219,43 @@
 import { ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { useUserStore } from "@/stores/user";
-import { apiGetMyPosts, apiSubmitPost, apiUpdateProfile } from "@/api/post";
+import {
+  apiGetMyPosts,
+  apiSubmitPost,
+  apiUpdateProfile,
+  apiComment,
+} from "@/api/post";
 import { apiUpdateAvatar } from "@/api/report";
+import { apiUploadAvatar } from "@/api/user";
+import { apiUploadPostImage } from "@/api/post";
 
 const userStore = useUserStore();
 const activeMenu = ref("profile");
 function switchMenu(key) {
   activeMenu.value = key;
-  if (key === "mine" && feedbacks.value.length === 0) loadMyPosts();
+  if (key === "mine") loadMyPosts();
 }
 
 /* ---- 头像 ---- */
 const avatarUrl = ref("");
+
 async function onAvatarChange(e) {
   const file = e.target.files?.[0];
   if (!file) return;
   try {
+    // 1. 先本地预览
     avatarUrl.value = URL.createObjectURL(file);
-    const { data } = await apiUpdateAvatar(file);
+    // 2. 调接口上传
+    const { data } = await apiUploadAvatar(file);
+    // 3. 用后台返回的真实地址回显（Mock 给的）
     avatarUrl.value = data.avatarUrl;
     ElMessage.success("头像更新成功");
   } catch (err) {
     ElMessage.error(err?.response?.data?.msg || "头像上传失败");
     avatarUrl.value = "";
+  } finally {
+    // 清空 input，允许重复选同一张图
+    e.target.value = "";
   }
 }
 
@@ -272,7 +284,7 @@ async function handleSave() {
   }
 }
 
-/* ---- 我的反馈（死数据） ---- */
+/* ---- 我的反馈 ---- */
 const feedbacks = ref([
   {
     postId: 1,
@@ -300,12 +312,11 @@ const feedbacks = ref([
   },
 ]);
 const loading = ref(false);
-
 async function loadMyPosts() {
   loading.value = true;
   try {
-    const { data } = await apiGetMyPosts(userStore.userId); // ③ 调接口
-    feedbacks.value = data.data || data || []; // ④ 赋值
+    const { data } = await apiGetMyPosts(userStore.userId);
+    feedbacks.value = data.data || data || [];
   } catch (e) {
     ElMessage.error(e?.response?.data?.msg || "获取列表失败");
   } finally {
@@ -325,15 +336,27 @@ const picInput = ref();
 function triggerPicSelect() {
   picInput.value?.click();
 }
-function onPicChange(e) {
+async function onPicChange(e) {
   const files = Array.from(e.target.files);
   if (!files.length) return;
   const left = 3 - picFiles.value.length;
-  files.slice(0, left).forEach((f) => {
-    picFiles.value.push({ file: f, url: URL.createObjectURL(f) });
-  });
+  for (const f of files.slice(0, left)) {
+    try {
+      // 1. 先上传到 Mock
+      const { data } = await apiUploadPostImage(f);
+      // 2. 把返回的真实地址放进预览数组
+      picFiles.value.push({
+        file: f, // 保留文件对象（万一后面还要提交）
+        url: data.url, // 用后端返回的 URL
+      });
+    } catch (err) {
+      ElMessage.error(err?.response?.data?.msg || "图片上传失败");
+    }
+  }
+  // 允许重复选同一张图
   e.target.value = "";
 }
+
 function removePic(idx) {
   URL.revokeObjectURL(picFiles.value[idx].url);
   picFiles.value.splice(idx, 1);
@@ -370,29 +393,37 @@ function openView(p) {
   showViewDlg.value = true;
 }
 
-/* ---- 回复弹窗 ---- */
+/* ---- 评价弹窗 ---- */
 const showReplyDlg = ref(false);
 const replyText = ref("");
+const replyStar = ref(5); // 新增：默认 5 星
 const currentReplyPost = ref({});
+
 function openReply(p) {
   currentReplyPost.value = p;
   replyText.value = "";
+  replyStar.value = 5;
   showReplyDlg.value = true;
 }
-function submitReply() {
-  if (!replyText.value.trim()) {
-    ElMessage.warning("请输入回复内容");
+
+async function submitReply() {
+  if (!replyStar.value) {
+    ElMessage.warning("请先选择星级");
     return;
   }
-  // 仅本地提示
-  ElMessage.success("回复已提交（本地演示）");
-  showReplyDlg.value = false;
-}
-const showDlg = ref(false);
-const detail = ref({});
-function openDetail(item) {
-  detail.value = item;
-  showDlg.value = true;
+  try {
+    await apiComment({
+      postId: currentReplyPost.value.postId,
+      userId: userStore.userId,
+      content: replyText.value.trim(),
+      star: replyStar.value,
+    });
+    ElMessage.success("评价已提交");
+    showReplyDlg.value = false;
+    await loadMyPosts();
+  } catch (e) {
+    ElMessage.error(e?.response?.data?.msg || "提交失败");
+  }
 }
 </script>
 
