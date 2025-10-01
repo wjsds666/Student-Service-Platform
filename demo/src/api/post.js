@@ -9,6 +9,15 @@ export const apiSubmitPost = (data) =>
   request.post("/api/user/student/post", data);
 
 export const apiUpdateProfile = (data) => request.put("/api/user/update", data);
+export function apiComment(data) {
+  return request.post("/api/user/student/comment", data);
+}
+// 上传反馈图片
+export function apiUploadPostImage(file) {
+  const fd = new FormData();
+  fd.append("image", file); // 接口要求的字段名
+  return request.post("/api/user/post/uploadImage", fd);
+}
 
 /* ========== 管理端 ========== */
 export const apiGetAllPosts = (params) =>
