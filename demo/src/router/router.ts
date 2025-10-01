@@ -19,26 +19,37 @@ const router = createRouter({
   ]
 })
 
-router.beforeEach((to, from, next) => {
-  if (to.meta?.title) document.title = to.meta.title
+router.beforeEach(async (to, from, next) => {
+  if (typeof to.meta?.title === 'string') document.title = to.meta.title
 
   const user = useUserStore()
-  if (!user.userType) user.restore()
-
   const token = localStorage.getItem('token')
 
+  // 仅在 userType 未定义时调用 restore
+  if (!user.userType) {
+    try {
+      await user.restore()
+    } catch (error) {
+      console.error('Failed to restore user:', error)
+      return next('/login')
+    }
+  }
 
+  // 如果已登录且访问登录页，则登出并重定向到首页
   if (to.name === 'login' && token) {
-    user.logout()   
+    await user.logout()
     return next()
   }
 
+  // 如果未登录且访问受保护路由，则重定向到登录页
+  if (typeof to.name === 'string' && ['stuhome', 'admhome', 'aphome'].includes(to.name) && !token) {
+    return next('/login')
+  }
 
-  if (['stuhome', 'admhome', 'aphome'].includes(to.name) && !token) return next('/login')
-
+  // 如果已登录且访问登录页，根据用户角色重定向
   if (to.name === 'login' && token) {
     if (user.isStudent) return next('/stuhome')
-    if (user.isAdmin)   return next('/admhome')
+    if (user.isAdmin) return next('/admhome')
     return next('/aphome')
   }
 

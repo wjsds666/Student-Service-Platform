@@ -42,67 +42,68 @@
         </div>
       </div>
     </div>
-    <!-- 3. 审核标记：统一 loading + 空数据提示 -->
-<div v-if="activeMenu === 'audit'" class="content-panel">
-  <h2>审核标记列表</h2>
-  <div v-loading="loading" element-loading-text="加载中...">
-    <!-- 空数据提示 -->
-    <div v-if="reportList.length === 0" style="text-align:center;color:#999;margin-top:40px;">
-      暂无举报记录
+
+    <!-- 3. 审核标记：卡片列表 + 大图详情弹窗 -->
+    <div v-if="activeMenu === 'audit'" class="content-panel">
+      <h2>审核标记列表</h2>
+      <div v-loading="loading" element-loading-text="加载中...">
+        <div v-if="reportList.length === 0" style="text-align:center;color:#999;margin-top:40px;">暂无举报记录</div>
+
+        <!-- 卡片列表：同查看反馈样式 -->
+        <div
+          class="card"
+          v-for="r in reportList"
+          :key="r.postId"
+          @click="openAuditDetail(r)"
+        >
+          <div class="card-header">{{ r.title }}</div>
+          <div class="card-body">{{ r.content }}</div>
+          <div class="card-footer">
+            <span style="margin-left: auto; font-size: 13px; color: #666">举报于 {{ r.createTime }}</span>
+          </div>
+          <div class="card-footer" style="margin-top: 10px">
+            <button class="action-btn" @click.stop="handleAuditReject(r)">驳回</button>
+            <button class="action-btn danger" @click.stop="handleAuditDelete(r)">删除</button>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <div class="card" v-for="r in reportList" :key="r.postId">
-      <div class="card-header">{{ r.title }}</div>
-      <div class="card-body">
-        <p><strong>举报理由：</strong>{{ r.reason }}</p>
-        <p><strong>提交人：</strong>{{ r.reporter }}</p>
-      </div>
-      <div class="card-footer">
-        <button class="action-btn" @click.stop="handleAuditReject(r)">驳回</button>
-        <button class="action-btn danger" @click.stop="handleAuditDelete(r)">删除</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-
-    <!-- 详情弹窗 -->
+    <!-- 详情弹窗：查看反馈 / 我的接单 -->
     <el-dialog v-model="showDlg" title="详情" width="700px" center>
-      <el-carousel v-if="detail.image?.length" height="400px" indicator-position="outside">
-        <el-carousel-item v-for="(url, idx) in detail.image" :key="idx">
-          <el-image :src="url" :preview-src-list="detail.image" fit="contain" class="gallery-img" />
-        </el-carousel-item>
-      </el-carousel>
+<el-carousel v-if="detail.image?.length" height="400px" indicator-position="outside">
+  <el-carousel-item v-for="(url, idx) in detail.image" :key="idx">
+    <el-image :src="url" :preview-src-list="detail.image" fit="contain" class="gallery-img" />
+  </el-carousel-item>
+</el-carousel>
 
-<div class="detail-info">
-  <!-- 用户区域：匿名星号 + 头像（后端字段 image） -->
-  <div class="user-line">
-    <el-avatar
-      v-if="showAvatar"
-      :src="detail.picture"
-      size="small"
-      class="avatar"
-    />
-    <span class="user-name">{{ displayName }}</span>
-  </div>
+      <div class="detail-info">
+        <!-- 用户区域：匿名星号 + 头像（后端字段 picture） -->
+        <div class="user-line">
+          <el-avatar
+            v-if="showAvatar"
+            :src="detail.picture"
+            size="small"
+            class="avatar"
+          />
+          <span class="user-name">{{ displayName }}</span>
+        </div>
 
-  <!-- 下面是你原来的标题、时间、紧急程度、内容、回复 -->
-  <h3>{{ detail.title }}</h3>
-  <p class="meta">提交时间：{{ detail.createTime }}</p>
-  <p class="meta">
-    紧急程度：
-    <el-tag :type="detail.level === 1 ? 'danger' : 'info'">
-      {{ detail.level === 1 ? "紧急" : "普通" }}
-    </el-tag>
-  </p>
-  <p class="content">{{ detail.content }}</p>
-  <p v-if="detail.response" class="response">
-    管理员回复：{{ detail.response }}
-  </p>
-</div>
+        <h3>{{ detail.title }}</h3>
+        <p class="meta">提交时间：{{ detail.createTime }}</p>
+        <p class="meta">
+          紧急程度：
+          <el-tag :type="detail.level === 1 ? 'danger' : 'info'">
+            {{ detail.level === 1 ? "紧急" : "普通" }}
+          </el-tag>
+        </p>
+        <p class="content">{{ detail.content }}</p>
+        <p v-if="detail.response" class="response">
+          管理员回复：{{ detail.response }}
+        </p>
+      </div>
 
-      <template #footer>
+      <template #footer">
         <el-button @click="showDlg = false">关闭</el-button>
       </template>
     </el-dialog>
@@ -115,10 +116,39 @@
         <el-button type="primary" @click="submitReply">发送</el-button>
       </template>
     </el-dialog>
+
+    <!-- 审核详情弹窗：大图 -->
+    <el-dialog v-model="showAuditDlg" title="举报详情" width="700px" center>
+      <div class="detail-info">
+
+        <!-- 帖子图片：后端字段 image + 点击大图预览 -->
+        <el-carousel v-if="auditDetail.image?.length" height="400px" indicator-position="outside">
+  <el-carousel-item v-for="(url, idx) in auditDetail.image" :key="idx">
+    <el-image :src="url" :preview-src-list="auditDetail.image" fit="contain" class="gallery-img" />
+  </el-carousel-item>
+</el-carousel>
+
+        <h3>{{ auditDetail.title }}</h3>
+        <p class="meta">提交时间：{{ auditDetail.createTime }}</p>
+        <p class="content">{{ auditDetail.content }}</p>
+
+        <!-- 举报理由（如有） -->
+        <p v-if="auditDetail.reason" class="meta">
+          <strong>举报理由：</strong>{{ auditDetail.reason }}
+        </p>
+
+      </div>
+      <template #footer>
+        <div style="text-align: center">
+          <el-button @click="showAuditDlg = false">关闭</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 <script setup>
-import { ref, onMounted } from "vue";
+import './aphome.css'
+import { ref, onMounted, computed} from "vue";
 import { ElMessage } from "element-plus";
 import { useUserStore } from "@/stores/user";
 import {
@@ -140,6 +170,14 @@ const showDlg = ref(false);
 const showReplyDlg = ref(false);
 const detail = ref({});
 const loading = ref(false);
+/* 审核详情弹窗 */
+const showAuditDlg = ref(false);
+const auditDetail = ref({});
+
+function openAuditDetail(r) {
+  auditDetail.value = r;
+  showAuditDlg.value = true;
+}
 
 /* 数据 */
 const feedbackPosts = ref([]);
@@ -299,134 +337,3 @@ function onAuditClick() {
 
 onMounted(() => onFeedbackClick());
 </script>
-<style scoped>
-
-.top-bar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 40px;
-  background: linear-gradient(145deg, #333, #444);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 10px 15px rgba(0, 0, 0, 0.2);
-}
-.platform-name {
-  font-family: "Microsoft YaHei", sans-serif;
-}
-.menu-bar {
-  position: fixed;
-  left: 0;
-  top: 40px;
-  width: 120px;
-  height: calc(100vh - 40px);
-  background: #333;
-  color: #fff;
-  display: flex;
-  flex-direction: column;
-  padding: 20px 0;
-  z-index: 999;
-}
-.menu-item {
-  padding: 10px 20px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-.menu-item:hover,
-.menu-item.active {
-  background-color: #555;
-}
-.content-container {
-  margin-top: 40px;
-  margin-left: 120px;
-  padding: 20px;
-  min-height: calc(100vh - 40px);
-  background: #f5f5f5;
-}
-.content-panel h2 {
-  margin-bottom: 20px;
-  font-size: 20px;
-  color: #333;
-}
-.card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  cursor: pointer;
-  transition: box-shadow 0.2s;
-}
-.card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-}
-.card-header {
-  font-size: 18px;
-  font-weight: bold;
-  margin-bottom: 10px;
-}
-.card-body {
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 15px;
-}
-.card-footer {
-  display: flex;
-  gap: 10px;
-}
-.action-btn {
-  padding: 8px 16px;
-  font-size: 14px;
-  background: #000;
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.action-btn:hover {
-  background: #333;
-}
-.action-btn.danger {
-  background: #e53935;
-}
-.action-btn.danger:hover {
-  background: #c62828;
-}
-.detail-info {
-  padding: 10px 0;
-}
-.detail-info h3 {
-  margin: 0 0 10px;
-}
-.meta {
-  margin: 4px 0;
-  font-size: 14px;
-  color: #555;
-}
-.content {
-  margin: 10px 0;
-  line-height: 1.6;
-}
-.response {
-  margin-top: 10px;
-  padding: 10px;
-  background: #f5f7fa;
-  border-radius: 4px;
-  font-size: 14px;
-  color: #333;
-}
-.gallery-img {
-  width: 100%;
-  border-radius: 6px;
-}
-
-/* 被管理员标记的帖子左侧边框高亮 */
-.admin-marked {
-  border-left: 4px solid #f56c6c;
-}
-</style>

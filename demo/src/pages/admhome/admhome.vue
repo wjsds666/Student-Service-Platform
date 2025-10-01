@@ -43,11 +43,11 @@
 
     <!-- 详情弹窗：只保留一次内容 -->
     <el-dialog v-model="showDlg" title="详情" width="700px" center :before-close="handleClose">
-      <el-carousel v-if="detail.image?.length" height="400px" indicator-position="outside">
-        <el-carousel-item v-for="(url, idx) in detail.picUrls" :key="idx">
-          <el-image :src="url" :preview-src-list="detail.image" fit="contain" class="gallery-img" />
-        </el-carousel-item>
-      </el-carousel>
+<el-carousel v-if="detail.image?.length" height="400px" indicator-position="outside">
+  <el-carousel-item v-for="(url, idx) in detail.image" :key="idx">
+    <el-image :src="url" :preview-src-list="detail.image" fit="contain" class="gallery-img" />
+  </el-carousel-item>
+</el-carousel>
 
       <div class="detail-info">
         <!-- 用户区域：匿名星号 + 头像 -->
@@ -94,6 +94,7 @@
 </template>
 
 <script setup>
+import './admhome.css'
 import { ref, onMounted, computed } from "vue";
 import { ElMessage } from "element-plus";
 import { useUserStore } from "@/stores/user";
@@ -238,137 +239,3 @@ function onOrdersClick() {
 
 onMounted(() => onFeedbackClick());
 </script>
-
-
-<style scoped>
-.top-bar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 40px;
-  background: linear-gradient(145deg, #333, #444);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 10px 15px rgba(0, 0, 0, 0.2);
-}
-.platform-name {
-  font-family: "Microsoft YaHei", sans-serif;
-  color: #fff;
-}
-.menu-bar {
-  position: fixed;
-  left: 0;
-  top: 40px;
-  width: 120px;
-  height: calc(100vh - 40px);
-  background: #333;
-  color: #fff;
-  display: flex;
-  flex-direction: column;
-  padding: 20px 0;
-  z-index: 999;
-}
-.menu-item {
-  padding: 10px 20px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-.menu-item:hover,
-.menu-item.active {
-  background-color: #555;
-}
-.content-container {
-  margin-top: 40px;
-  margin-left: 120px;
-  padding: 20px;
-  min-height: calc(100vh - 40px);
-  background: #f5f5f5;
-}
-.content-panel h2 {
-  margin-bottom: 20px;
-  font-size: 20px;
-  color: #333;
-}
-.card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  cursor: pointer;
-  transition: box-shadow 0.2s;
-}
-.card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-}
-.card-header {
-  font-size: 18px;
-  font-weight: bold;
-  margin-bottom: 10px;
-}
-.card-body {
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 15px;
-}
-.card-footer {
-  display: flex;
-  gap: 10px;
-}
-.action-btn {
-  padding: 8px 16px;
-  font-size: 14px;
-  background: #000;
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.action-btn:hover {
-  background: #333;
-}
-.detail-info {
-  padding: 10px 0;
-}
-.detail-info h3 {
-  margin: 0 0 10px;
-}
-.meta {
-  margin: 4px 0;
-  font-size: 14px;
-  color: #555;
-}
-.content {
-  margin: 10px 0;
-  line-height: 1.6;
-}
-.response {
-  margin-top: 10px;
-  padding: 10px;
-  background: #f5f7fa;
-  border-radius: 4px;
-  font-size: 14px;
-  color: #333;
-}
-.gallery-img {
-  width: 100%;
-  border-radius: 6px;
-}
-.user-line {
-  display: flex;
-  align-items: center;
-  margin-bottom: 12px;
-}
-.avatar {
-  margin-right: 8px;
-}
-.user-name {
-  font-size: 14px;
-  color: #606266;
-}
-</style>

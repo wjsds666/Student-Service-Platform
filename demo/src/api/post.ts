@@ -32,9 +32,6 @@ export const apiAcceptPost = (data) =>
 export const apiReplyPost = (data) =>
   request.post("/api/user/admin/response", data);
 
-export const apiDeletePost = (data) =>
-  request.delete("/api/admin/post", { data });
-
 export const apiGetReports = () => request.get("/api/admin/reports");
 
 export const apiAuditReport = (data) => request.put("/api/admin/audit", data);
