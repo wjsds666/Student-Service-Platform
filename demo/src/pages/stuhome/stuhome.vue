@@ -37,14 +37,17 @@
     <!-- 1. 个人信息 -->
     <div v-if="activeMenu === 'profile'" class="content-panel">
       <h2>个人信息</h2>
-      <div class="card" style="display:flex;align-items:flex-start;gap:24px">
+      <div
+        class="card"
+        style="display: flex; align-items: flex-start; gap: 24px"
+      >
         <!-- 头像 -->
         <div class="avatar-box">
           <input
             ref="fileInput"
             type="file"
             accept="image/*"
-            style="display:none"
+            style="display: none"
             @change="onAvatarChange"
           />
           <div class="avatar-circle" @click="$refs.fileInput.click()">
@@ -54,7 +57,7 @@
         </div>
 
         <!-- 表单 -->
-        <el-form label-width="80px" style="flex:1">
+        <el-form label-width="80px" style="flex: 1">
           <el-form-item label="姓名">
             <el-input v-model="profile.name" placeholder="请输入姓名" />
           </el-form-item>
@@ -74,8 +77,13 @@
             <el-input v-model="profile.email" placeholder="请输入邮箱" />
           </el-form-item>
           <el-form-item label=" ">
-            <div style="width:100%;display:flex;justify-content:center">
-              <el-button type="primary" :loading="saveLoading" @click="handleSave">保存</el-button>
+            <div style="width: 100%; display: flex; justify-content: center">
+              <el-button
+                type="primary"
+                :loading="saveLoading"
+                @click="handleSave"
+                >保存</el-button
+              >
             </div>
           </el-form-item>
         </el-form>
@@ -98,13 +106,32 @@
             <el-tag :type="f.level === 1 ? 'danger' : 'info'">
               {{ f.level === 1 ? "紧急" : "普通" }}
             </el-tag>
-            <span style="margin-left:auto;font-size:13px;color:#666">
+            <span style="margin-left: auto; font-size: 13px; color: #666">
               提交于 {{ f.createTime }}
             </span>
           </div>
-          <div class="card-footer" style="margin-top:10px">
+          <div class="card-footer" style="margin-top: 10px">
+            <!-- 原有按钮 -->
             <button class="action-btn" @click.stop="openView(f)">查看</button>
             <button class="action-btn" @click.stop="openReply(f)">评价</button>
+
+            <!-- ✅ 新增：状态标签 -->
+            <el-tag
+              style="margin-left: auto"
+              v-bind="
+                f.status === '被接单'
+                  ? { type: 'success' }
+                  : f.status === '被取消接单'
+                  ? { type: 'warning' }
+                  : f.status === '接单结束'
+                  ? { type: 'info' }
+                  : f.status === '被标记'
+                  ? { type: 'danger' }
+                  : {} // ✅ 不满足时直接不给 type
+              "
+            >
+              {{ f.status }}
+            </el-tag>
           </div>
         </div>
       </div>
@@ -143,15 +170,11 @@
                 ref="picInput"
                 type="file"
                 accept="image/*"
-                style="display:none"
+                style="display: none"
                 @change="onPicChange"
               />
               <!-- 预览 -->
-              <div
-                v-for="(f, idx) in picFiles"
-                :key="idx"
-                class="img-preview"
-              >
+              <div v-for="(f, idx) in picFiles" :key="idx" class="img-preview">
                 <img :src="f.url" />
                 <span class="close" @click.stop="removePic(idx)">×</span>
               </div>
@@ -202,7 +225,7 @@
       </div>
     </div>
     <template #footer>
-      <div style="text-align:center">
+      <div style="text-align: center">
         <el-button @click="showViewDlg = false">关闭</el-button>
       </div>
     </template>
@@ -210,8 +233,8 @@
 
   <!-- 评价弹窗 -->
   <el-dialog v-model="showReplyDlg" title="我要评价" width="500px" center>
-    <div style="margin-bottom:12px">
-      <span style="margin-right:8px">满意度：</span>
+    <div style="margin-bottom: 12px">
+      <span style="margin-right: 8px">满意度：</span>
       <el-rate
         v-model="replyStar"
         :colors="['#99A9BF', '#F7BA2A', '#FF9900']"
@@ -226,7 +249,7 @@
       placeholder="请输入文字评价（选填）"
     />
     <template #footer>
-      <div style="text-align:center">
+      <div style="text-align: center">
         <el-button type="primary" @click="submitReply">提交</el-button>
         <el-button @click="showReplyDlg = false">关闭</el-button>
       </div>
@@ -235,7 +258,7 @@
 </template>
 
 <script setup>
-import './stuhome.css'
+import "./stuhome.css";
 import { ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { useUserStore } from "@/stores/user";
@@ -247,6 +270,7 @@ import {
 } from "@/api/post";
 import { apiUploadAvatar } from "@/api/user";
 import { apiUploadPostImage } from "@/api/post";
+import { apiGetNotifications } from "@/api/post";
 
 /* ---------- 基础 ---------- */
 const userStore = useUserStore();
@@ -312,10 +336,38 @@ async function loadMyPosts() {
   try {
     const { data } = await apiGetMyPosts(userStore.userId);
     feedbacks.value = data.data || data || [];
+    await loadNotifications(); // ✅ 新增：拉通知并映射状态
   } catch (e) {
     ElMessage.error(e?.response?.data?.msg || "获取列表失败");
   } finally {
     loading.value = false;
+  }
+}
+
+const notifications = ref([]); // 保存通知列表
+
+/* 把通知映射到帖子 */
+function mapStatusToFeedbacks() {
+  const map = {
+    接单: "被接单",
+    取消接单: "被取消接单",
+    完成: "接单结束",
+    标记: "被标记",
+  };
+  feedbacks.value.forEach((f) => {
+    const notice = notifications.value.find((n) => n.postId === f.postId);
+    f.status = notice ? map[notice.type] || "暂无状态" : "暂无状态";
+  });
+}
+
+/* 拉取通知并映射 */
+async function loadNotifications() {
+  try {
+    const { data } = await apiGetNotifications(userStore.userId);
+    notifications.value = data || [];
+    mapStatusToFeedbacks();
+  } catch (e) {
+    ElMessage.error("获取通知失败");
   }
 }
 
