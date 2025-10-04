@@ -1,4 +1,3 @@
-// src/api/post.js  (唯一一份，已去重)
 import request from "@/utils/request";
 
 /* ========== 学生端 ========== */
@@ -32,6 +31,7 @@ export const apiAcceptPost = (data) =>
 export const apiReplyPost = (data) =>
   request.post("/api/user/admin/response", data);
 
-export const apiGetReports = () => request.get("/api/admin/reports");
-
 export const apiAuditReport = (data) => request.put("/api/admin/audit", data);
+// 管理员把已接单帖子标记为“已完成”
+export const apiFinishOrder = (data) =>
+  request.put('/api/user/admin/resolve', data)

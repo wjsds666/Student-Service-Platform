@@ -36,10 +36,12 @@
           <div class="card-footer">
             <button class="action-btn" @click.stop="openReplyDlg(p)">回复</button>
             <button class="action-btn danger" @click.stop="handleRevoke(p)">撤销</button>
+            <button class="action-btn success" @click.stop="handleFinish(p)">结束</button>
           </div>
         </div>
       </div>
     </div>
+      
 
     <!-- 详情弹窗：只保留一次内容 -->
     <el-dialog v-model="showDlg" title="详情" width="700px" center :before-close="handleClose">
@@ -106,6 +108,7 @@ import {
   apiReplyPost,
 } from "@/api/post";
 import request from "@/utils/request";
+import { apiFinishOrder } from '@/api/post'  
 
 const userStore = useUserStore();
 const activeMenu = ref("feedback");
@@ -148,6 +151,15 @@ async function loadOrders() {
     orderPosts.value = data;
   } finally {
     loading.value = false;
+  }
+}
+async function handleFinish(post) {
+  try {
+    await apiFinishOrder({ userId: userStore.userId, postId: post.postId })
+    ElMessage.success('该反馈已标记为完成')
+    loadOrders()          // 重新拉“我的接单”列表
+  } catch (e) {
+    ElMessage.error(e?.response?.data?.msg || '结束接单失败')
   }
 }
 

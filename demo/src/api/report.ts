@@ -19,11 +19,11 @@ export const apiDeletePostBySuper = (params) =>
 
 // 超管获取全部举报列表（审核标记）
 export const apiGetReportsForAudit = () =>
-  request.get('/api/user/admin/report/audit');
+  request.get('/api/user/admin/report');
 
 // 管理员/超管撤销接单（取消接单）
 export const apiRevokeOrder = (params) =>
   request.put('/api/user/admin/delete_accept', null, { params });
 // 审核举报  approval: 1=通过(删除)  2=驳回
 export const apiAuditReport = (params) =>
-  request.put('/api/user/admin/report', null, { params });
+  request.delete('/api/user/admin/report', { params });
