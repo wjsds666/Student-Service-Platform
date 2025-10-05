@@ -1,22 +1,38 @@
-import request from "@/utils/request";
+import request from '@/utils/request'
 
 /* ===================== 用户相关 ===================== */
 
-/** 登录 */
-export const apiLogin = (data) => request.post("/api/user/login", data);
+/** 登录
+ * 请求体：{ userName, password }
+ */
+export const apiLogin = ({ userName, password }: {
+  userName: string
+  password: string
+}) => request.post('/api/user/login', { userName, password })
 
-/** 注册 */
-export const apiReg = (data) => request.post("/api/user/reg", data);
+/** 注册
+ * 请求体：{ userName, password, email }
+ */
+export const apiReg = ({ userName, password, email }: {
+  userName: string
+  password: string
+  email: string
+}) => request.post('/api/user/reg', { userName, password, email })
 
-/** 更新个人资料（支持头像字段 avatarUrl） */
-export const apiUpdateProfile = (data) => request.put("/api/user/update", data);
+/** 更新个人资料（一次改一项）
+ * 请求体：{ key: 'avatar'|'sex'|'email', value: string }
+ */
+export const apiUpdateProfile = ({ key, value }: {
+  key: 'avatar' | 'sex' | 'email'
+  value: string
+}) => request.put('/api/user/update', { key, value })
 
 /** 上传头像（form-data）
- *  @param file  File 对象
- *  @returns     Promise<{ avatarUrl: string }>
+ * 请求体：FormData { avatar: File, userId: number }
  */
-export function apiUploadAvatar(file: File) {
-  const fd = new FormData();
-  fd.append("avatar", file);
-  return request.post("/api/user/uploadAvatar", fd);
+export function apiUploadAvatar(file: File, userId: number) {
+  const fd = new FormData()
+  fd.append('avatar', file)
+  fd.append('userId', String(userId))
+  return request.post('/api/user/uploadAvatar', fd)
 }

@@ -20,7 +20,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import './register.css'
 import { reactive } from 'vue'
 import { useRouter } from 'vue-router'
@@ -40,10 +40,10 @@ async function handleRegister() {
     return
   }
   try {
-    await apiReg(registerForm)   
+    await apiReg(registerForm) // 只传 { userName, password, email }
     ElMessage.success('注册成功，请登录')
     router.push({ name: 'login' })
-  } catch (e) {
+  } catch (e: any) {
     ElMessage.error(e?.response?.data?.msg || '注册失败')
   }
 }

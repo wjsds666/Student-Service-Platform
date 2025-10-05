@@ -5,7 +5,7 @@ type RefreshToken = () => Promise<boolean>
 type LogoutFn = () => void
 
 const service = axios.create({
-  baseURL: 'http://127.0.0.1:4523/m1/7132041-6855088-default',
+  baseURL: 'http://8.134.147.255:8081',
   timeout: 6000
 })
 

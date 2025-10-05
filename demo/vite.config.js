@@ -14,7 +14,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:4523/m1/7132041-6855088-defaultq",
+        target: "http://8.134.147.255:8081",
 
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ""), // 关键：把 /api 去掉再转发

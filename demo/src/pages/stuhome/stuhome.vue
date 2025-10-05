@@ -20,7 +20,7 @@
         <!-- 头像 -->
         <div class="avatar-box">
           <input ref="fileInput" type="file" accept="image/*" style="display:none" @change="onAvatarChange" />
-          <div class="avatar-circle" @click="$refs.fileInput.click()">
+          <div class="avatar-circle" @click="triggerAvatarSelect">
             <img v-if="avatarUrl" :src="avatarUrl" class="avatar-img" />
             <div v-else class="avatar-placeholder">点击添加头像</div>
           </div>
@@ -149,210 +149,205 @@
   </el-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import './stuhome.css'
-import { ref, onMounted } from "vue";
-import { ElMessage } from "element-plus";
-import { useUserStore } from "@/stores/user";
+import { ref, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
+import { useUserStore } from '@/stores/user'
 import {
   apiGetMyPosts,
   apiSubmitPost,
-  apiUpdateProfile,
   apiComment,
-} from "@/api/post";
-import { apiUploadAvatar } from "@/api/user";
-import { apiUploadPostImage } from "@/api/post";
-/* ---------- 通知 ---------- */
-import { apiGetNotice } from '@/api/notice'   // 按你实际路径
+  apiUploadPostImage
+} from '@/api/post'
+import { apiUpdateProfile, apiUploadAvatar } from '@/api/user'
+import { apiGetNotice } from '@/api/notice'
 import { Bell } from '@element-plus/icons-vue'
 
+const userStore = useUserStore()
+const activeMenu = ref('profile')
+
+/* ---------- 通知 ---------- */
 const showNoticeDlg = ref(false)
 const noticeList = ref([])
-
-async function openNotice(post) {
-  const res = await apiGetNotice({ postId: post.postId })
-  // 如果后端返回的是 { code:0, data:[...] } 就取 res.data，否则直接 res
-  const raw = res.data ?? res
-  noticeList.value = (raw || []).map(item => ({
-    id: item.postId,
-    content: item.message,
-    createTime: item.createTime
+async function openNotice(post: any) {
+  const res = await apiGetNotice()
+  noticeList.value = (res.data || res || []).map((i: any) => ({
+    id: i.postId,
+    content: i.message,
+    createTime: i.createTime
   }))
-  console.log('最终赋值', noticeList.value)   // 必须打印 2 条
   showNoticeDlg.value = true
-}
-/* ---------- 基础 ---------- */
-const userStore = useUserStore();
-const activeMenu = ref("profile");
-
-function switchMenu(key) {
-  activeMenu.value = key;
-  if (key === "mine") loadMyPosts();
 }
 
 /* ---------- 头像 ---------- */
-const avatarUrl = ref("");
-
-async function onAvatarChange(e) {
-  const file = e.target.files?.[0];
-  if (!file) return;
+const avatarUrl = ref('')
+const fileInput = ref<HTMLInputElement | null>(null)
+async function onAvatarChange(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif']
+  const maxSize = 2 * 1024 * 1024 // 2MB
+  if (!allowedTypes.includes(file.type)) {
+    ElMessage.error('请上传图片文件（JPEG/PNG/GIF）')
+    return
+  }
+  if (file.size > maxSize) {
+    ElMessage.error('文件大小不能超过2MB')
+    return
+  }
   try {
-    avatarUrl.value = URL.createObjectURL(file);
-    const { data } = await apiUploadAvatar(file);
-    avatarUrl.value = data.avatarUrl;
-    ElMessage.success("头像更新成功");
-  } catch (err) {
-    ElMessage.error(err?.response?.data?.msg || "头像上传失败");
-    avatarUrl.value = "";
+    avatarUrl.value = URL.createObjectURL(file)
+    const { data } = await apiUploadAvatar(file, userStore.userId)
+    avatarUrl.value = data.avatarUrl
+    ElMessage.success('头像更新成功')
+  } catch (err: any) {
+    ElMessage.error(err?.response?.data?.msg || '头像上传失败')
+    avatarUrl.value = ''
   } finally {
-    e.target.value = "";
+    ;(e.target as HTMLInputElement).value = ''
   }
 }
 
 /* ---------- 个人信息 ---------- */
 const profile = ref({
-  name: "张三",
-  college: "计算机学院",
-  major: "软件工程",
-  class: "软工2022级3班",
-  phone: "13800138000",
-  email: "zhangsan@mail.com",
-});
-const saveLoading = ref(false);
-
+  name: '',
+  college: '',
+  major: '',
+  class: '',
+  phone: '',
+  email: ''
+})
+const saveLoading = ref(false)
 async function handleSave() {
-  saveLoading.value = true;
+  saveLoading.value = true
   try {
-    const { data } = await apiUpdateProfile({
-      userId: userStore.userId,
-      ...profile.value,
-    });
-    Object.assign(profile.value, data);
-    ElMessage.success("个人信息已更新");
-  } catch (e) {
-    ElMessage.error(e?.response?.data?.msg || "更新失败");
+    await apiUpdateProfile({ key: 'email', value: profile.value.email }) // 一次改一项示例
+    ElMessage.success('个人信息已更新')
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.msg || '更新失败')
   } finally {
-    saveLoading.value = false;
+    saveLoading.value = false
   }
 }
 
 /* ---------- 我的反馈 ---------- */
-const feedbacks = ref([]);
-const loading = ref(false);
-
+const feedbacks = ref<any[]>([])
+const loading = ref(false)
 async function loadMyPosts() {
-  loading.value = true;
+  loading.value = true
   try {
-    const { data } = await apiGetMyPosts(userStore.userId);
-    feedbacks.value = data.data || data || [];
-  } catch (e) {
-    ElMessage.error(e?.response?.data?.msg || "获取列表失败");
+    const res = await apiGetMyPosts(userStore.userId)
+    feedbacks.value = res.data || res || []
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.msg || '获取列表失败')
   } finally {
-    loading.value = false;
+    loading.value = false
   }
 }
 
 /* ---------- 提交反馈 ---------- */
-const form = ref({
-  title: "",
-  content: "",
+const form = ref<{
+  title: string
+  content: string
+  level: 1 | 2
+  hide: 1 | 2
+}>({
+  title: '',
+  content: '',
   level: 2,
-  hide: 2,
-});
-const picFiles = ref([]);
-const picInput = ref();
-
+  hide: 2
+})
+const picFiles = ref<any[]>([])
+const picInput = ref<HTMLInputElement | null>(null)
 function triggerPicSelect() {
-  picInput.value?.click();
+  picInput.value?.click()
 }
-
-async function onPicChange(e) {
-  const files = Array.from(e.target.files);
-  if (!files.length) return;
-  const left = 3 - picFiles.value.length;
+async function onPicChange(e: Event) {
+  const files = Array.from((e.target as HTMLInputElement).files || [])
+  if (!files.length) return
+  const left = 3 - picFiles.value.length
   for (const f of files.slice(0, left)) {
     try {
-      const { data } = await apiUploadPostImage(f);
-      picFiles.value.push({ file: f, url: data.url });
-    } catch (err) {
-      ElMessage.error(err?.response?.data?.msg || "图片上传失败");
+      const { data } = await apiUploadPostImage(f)
+      picFiles.value.push({ file: f, url: data.url })
+    } catch (err: any) {
+      ElMessage.error(err?.response?.data?.msg || '图片上传失败')
     }
   }
-  e.target.value = "";
+  ;(e.target as HTMLInputElement).value = ''
 }
-
-function removePic(idx) {
-  URL.revokeObjectURL(picFiles.value[idx].url);
-  picFiles.value.splice(idx, 1);
+function removePic(idx: number) {
+  URL.revokeObjectURL(picFiles.value[idx].url)
+  picFiles.value.splice(idx, 1)
 }
-
 async function handleSubmit() {
   if (!form.value.title || !form.value.content) {
-    ElMessage.warning("请填标题和内容");
-    return;
+    ElMessage.warning('请填标题和内容')
+    return
   }
-  const fd = new FormData();
-  fd.append("userId", userStore.userId);
-  fd.append("title", form.value.title);
-  fd.append("content", form.value.content);
-  fd.append("level", form.value.level);
-  fd.append("hide", form.value.hide);
-  picFiles.value.forEach((f) => fd.append("pics", f.file));
-
   try {
-    await apiSubmitPost(fd);
-    ElMessage.success("提交成功");
-    form.value = { title: "", content: "", level: 2, hide: 2 };
-    picFiles.value = [];
-    await loadMyPosts();
-    switchMenu("mine");
-  } catch (e) {
-    ElMessage.error(e?.response?.data?.msg || "提交失败");
+    await apiSubmitPost({
+      userId: userStore.userId,
+      title: form.value.title,
+      content: form.value.content,
+      level: form.value.level,
+      hide: form.value.hide
+    })
+    ElMessage.success('提交成功')
+    form.value = { title: '', content: '', level: 2, hide: 2 }
+    picFiles.value = []
+    await loadMyPosts()
+    activeMenu.value = 'mine'
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.msg || '提交失败')
   }
 }
 
-/* ---------- 查看弹窗 ---------- */
-const showViewDlg = ref(false);
-const viewPost = ref({});
-
-function openView(p) {
-  viewPost.value = p;
-  showViewDlg.value = true;
+/* ---------- 查看 & 评价弹窗 ---------- */
+const showViewDlg = ref(false)
+const viewPost = ref<any>({})
+function openView(p: any) {
+  viewPost.value = p
+  showViewDlg.value = true
 }
 
-/* ---------- 评价弹窗 ---------- */
-const showReplyDlg = ref(false);
-const replyText = ref("");
-const replyStar = ref(5);
-const currentReplyPost = ref({});
-
-function openReply(p) {
-  currentReplyPost.value = p;
-  replyText.value = "";
-  replyStar.value = 5;
-  showReplyDlg.value = true;
+const showReplyDlg = ref(false)
+const replyText = ref('')
+const replyStar = ref(5)
+const currentReplyPost = ref<any>({})
+function openReply(p: any) {
+  currentReplyPost.value = p
+  replyText.value = ''
+  replyStar.value = 5
+  showReplyDlg.value = true
 }
-
 async function submitReply() {
   if (!replyStar.value) {
-    ElMessage.warning("请先选择星级");
-    return;
+    ElMessage.warning('请先选择星级')
+    return
   }
   try {
     await apiComment({
-      postId: currentReplyPost.value.postId,
       userId: userStore.userId,
-      content: replyText.value.trim(),
-      star: replyStar.value,
-    });
-    ElMessage.success("评价已提交");
-    showReplyDlg.value = false;
-    await loadMyPosts();
-  } catch (e) {
-    ElMessage.error(e?.response?.data?.msg || "提交失败");
+      postId: currentReplyPost.value.postId,
+      content: replyText.value.trim()
+    })
+    ElMessage.success('评价已提交')
+    showReplyDlg.value = false
+    await loadMyPosts()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.msg || '提交失败')
   }
+}
+function triggerAvatarSelect() {
+  (fileInput.value as HTMLInputElement)?.click()
 }
 
 /* ---------- 生命周期 ---------- */
-onMounted(() => switchMenu("profile"));
+function switchMenu(key: string) {
+  activeMenu.value = key
+  if (key === 'mine') loadMyPosts()
+}
+onMounted(() => switchMenu('profile'))
 </script>

@@ -28,20 +28,22 @@
       </div>
     </div>
 
-    <!-- 2. 我的接单：增加撤单按钮 -->
-    <div v-if="activeMenu === 'orders'" class="content-panel">
-      <h2>我的接单</h2>
-      <div v-loading="loading" element-loading-text="加载中...">
-        <div class="card" v-for="p in orderPosts" :key="p.postId" @click="openDetail(p)">
-          <div class="card-header">{{ p.title }}</div>
-          <div class="card-body">{{ p.content }}</div>
-          <div class="card-footer">
-            <button class="action-btn" @click.stop="openReplyDlg(p)">回复</button>
-            <button class="action-btn danger" @click.stop="handleRevoke(p)">撤单</button>
-          </div>
-        </div>
+<!-- 2. 我的接单：增加撤单/结束按钮 -->
+<div v-if="activeMenu === 'orders'" class="content-panel">
+  <h2>我的接单</h2>
+  <div v-loading="loading" element-loading-text="加载中...">
+    <div class="card" v-for="p in orderPosts" :key="p.postId" @click="openDetail(p)">
+      <div class="card-header">{{ p.title }}</div>
+      <div class="card-body">{{ p.content }}</div>
+      <div class="card-footer">
+        <button class="action-btn" @click.stop="openReplyDlg(p)">回复</button>
+        <button class="action-btn danger" @click.stop="handleRevoke(p)">撤单</button>
+        <!-- ✅ 新增结束接单 -->
+        <button class="action-btn success" @click.stop="handleFinish(p)">结束</button>
       </div>
     </div>
+  </div>
+</div>
 
     <!-- 3. 审核标记：卡片列表 + 大图详情弹窗 -->
     <div v-if="activeMenu === 'audit'" class="content-panel">
@@ -146,194 +148,191 @@
     </el-dialog>
   </div>
 </template>
-<script setup>
+<script setup lang="ts">
 import './aphome.css'
-import { ref, onMounted, computed} from "vue";
-import { ElMessage } from "element-plus";
-import { useUserStore } from "@/stores/user";
-import {
-  apiDeletePostBySuper,
-  apiRevokeOrder,
-  apiGetReportsForAudit,
-  apiAuditReport, // ① 新增审核封装
-} from "@/api/report";
+import { ref, onMounted, } from 'vue'
+import { ElMessage } from 'element-plus'
+import { useUserStore } from '@/stores/user'
 import {
   apiGetAllPosts,
   apiSelectOrders,
   apiAcceptPost,
   apiReplyPost,
-} from "@/api/post";
-
-const userStore = useUserStore();
-const activeMenu = ref("feedback");
-const showDlg = ref(false);
-const showReplyDlg = ref(false);
-const detail = ref({});
-const loading = ref(false);
-/* 审核详情弹窗 */
-const showAuditDlg = ref(false);
-const auditDetail = ref({});
-
-function openAuditDetail(r) {
-  auditDetail.value = r;
-  showAuditDlg.value = true;
-}
+  apiFinishOrder
+} from '@/api/post'
+import {
+  apiGetReportsForAudit,
+  apiAuditReport,
+  apiDeletePostBySuper,
+  apiRevokeOrder 
+} from '@/api/report'
+const userStore = useUserStore()
+const activeMenu = ref('feedback')
 
 /* 数据 */
-const feedbackPosts = ref([]);
-const orderPosts = ref([]);
-const reportList = ref([]);
-const replyText = ref("");
-let currentReplyPost = null;
+const feedbackPosts = ref<any[]>([])
+const orderPosts = ref<any[]>([])
+const reportList = ref<any[]>([])
+const loading = ref(false)
 
-/* 用户展示（匿名星号 + 头像）→ 后端字段 image  */
-const displayName = computed(() =>
-  (!detail.value.hide || detail.value.hide === 1) ? '***' : (detail.value.userName || '未知用户')
-);
-const showAvatar = computed(() =>
-  detail.value.hide !== 1 && detail.value.picture   // 用 image
-);
-
-/* 拉取函数 */
-async function loadFeedback() {
-  loading.value = true;
+async function handleDelete(post: any) {
   try {
-    const { data } = await apiGetAllPosts({ state: 1 });
-    feedbackPosts.value = data;
+    await apiDeletePostBySuper(post.postId)
+    ElMessage.success('已删除')
+    loadFeedback()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.msg || '删除失败')
+  }
+}
+async function loadFeedback() {
+  loading.value = true
+  try {
+    const res = await apiGetAllPosts({ state: 1 })
+    feedbackPosts.value = res.data || res || []
   } finally {
-    loading.value = false;
+    loading.value = false
   }
 }
 async function loadOrders() {
-  loading.value = true;
+  loading.value = true
   try {
-    const { data } = await apiSelectOrders({ state: 2 });
-    orderPosts.value = data;
+    const res = await apiSelectOrders({ userId: userStore.userId, state: 2})
+    orderPosts.value = res.data || res || []
   } finally {
-    loading.value = false;
+    loading.value = false
   }
 }
 async function loadAudit() {
-  loading.value = true;
+  loading.value = true
   try {
-    const res = await apiGetReportsForAudit();
-    reportList.value = Array.isArray(res) ? res : (res.data || []);
-  } catch (e) {
-    ElMessage.error(e?.response?.data?.msg || "获取举报列表失败");
+    const res = await apiGetReportsForAudit()
+    reportList.value = res.data || res || []
   } finally {
-    loading.value = false;
+    loading.value = false
   }
 }
 
-/* 弹窗 */
-function openDetail(post) {
-  detail.value = post;
-  showDlg.value = true;
-}
-function openReplyDlg(post) {
-  currentReplyPost = post;
-  showReplyDlg.value = true;
-}
-
-/* 按钮事件 */
-async function handleClaim(post) {
+/* 接单 / 撤单 / 删帖 / 审核 */
+async function handleClaim(post: any) {
   try {
-    await apiAcceptPost({ userId: userStore.userId, postId: post.postId });
-    ElMessage.success("接单成功");
-    loadFeedback();
-  } catch (e) {
-    ElMessage.error(e?.response?.data?.msg || "接单失败");
+    await apiAcceptPost({ userId: userStore.userId, postId: post.postId })
+    ElMessage.success('接单成功')
+    loadFeedback()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.msg || '接单失败')
   }
+}
+async function handleRevoke(post: any) {
+  try {
+    await apiRevokeOrder(userStore.userId, post.postId)
+    ElMessage.success('已撤单')
+    loadOrders()          // 刷新“我的接单”列表
+    loadFeedback()        // 可选：刷新待接单列表
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.msg || '撤单失败')
+  }
+}
+/* 结束接单 */
+async function handleFinish(post: any) {
+  try {
+    await apiFinishOrder(post.postId)   // 后端用 postId 当 acceptanceId
+    ElMessage.success('该反馈已标记为完成')
+    loadOrders()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.msg || '结束失败')
+  }
+}
+async function handleAuditReject(r: any) {
+  try {
+    await apiAuditReport(userStore.userId, r.reportId, 2)
+    ElMessage.success('已驳回')
+    reportList.value = reportList.value.filter(x => x.reportId !== r.reportId)
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.msg || '驳回失败')
+  }
+}
+async function handleAuditDelete(r: any) {
+  try {
+    await apiAuditReport(userStore.userId, r.reportId, 1)
+    ElMessage.success('已删除并通过审核')
+    reportList.value = reportList.value.filter(x => x.reportId !== r.reportId)
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.msg || '删除失败')
+  }
+}
+
+/* 用户展示（匿名星号 + 头像） */
+
+const showAvatar = computed(() =>
+  detail.value.hide !== 1 && detail.value.picture
+)
+
+/* 回复 */
+const showReplyDlg = ref(false)
+const replyText = ref('')
+let currentReplyPost = null as any
+function openReplyDlg(post: any) {
+  currentReplyPost = post
+  replyText.value = ''
+  showReplyDlg.value = true
 }
 async function submitReply() {
   if (!replyText.value.trim()) {
-    ElMessage.warning("请输入回复内容");
-    return;
+    ElMessage.warning('请输入回复内容')
+    return
   }
   try {
     await apiReplyPost({
       userId: userStore.userId,
       postId: currentReplyPost.postId,
-      response: replyText.value,
-    });
-    ElMessage.success("回复成功");
-    showReplyDlg.value = false;
-    if (activeMenu.value === "orders") loadOrders();
-  } catch (e) {
-    ElMessage.error(e?.response?.data?.msg || "回复失败");
-  }
-}
-async function handleDelete(post) {
-  try {
-    await apiDeletePostBySuper({
-      userId: userStore.userId,
-      postId: post.postId,
-      approval: 1,
-    });
-    ElMessage.success("已删除");
-    if (activeMenu.value === "feedback") {
-      feedbackPosts.value = feedbackPosts.value.filter((p) => p.postId !== post.postId);
-    }
-  } catch (e) {
-    ElMessage.error(e?.response?.data?.msg || "删除失败");
-  }
-}
-async function handleRevoke(post) {
-  try {
-    await apiRevokeOrder({ userId: userStore.userId, postId: post.postId });
-    ElMessage.success("已撤单");
-    loadOrders();
-    loadFeedback();
-  } catch (e) {
-    ElMessage.error(e?.response?.data?.msg || "撤单失败");
+      content: replyText.value
+    })
+    ElMessage.success('回复成功')
+    showReplyDlg.value = false
+    loadOrders()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.msg || '回复失败')
   }
 }
 
-/* 审核按钮事件：同一个接口，不同 approval */
-/* 审核按钮事件：同一个接口，不同 approval */
-async function handleAuditReject(r) {
-  try {
-    await apiAuditReport({
-      userId: userStore.userId,
-      postId: r.postId,
-      approval: 2,
-    });
-    // 后端只给 200，无 body，直接成功
-    ElMessage.success("已驳回");
-    reportList.value = reportList.value.filter((x) => x.postId !== r.postId);
-  } catch (e) {
-    // 只有非 200 才进这里
-    ElMessage.error(e?.response?.data?.msg || "驳回失败");
-  }
+/* 弹窗 */
+const showDlg = ref(false)
+const showAuditDlg = ref(false)
+const detail = ref<any>({})
+const auditDetail = ref<any>({})
+function openDetail(post: any) {
+  detail.value = post
+  showDlg.value = true
+}
+function openAuditDetail(r: any) {
+  auditDetail.value = r
+  showAuditDlg.value = true
 }
 
-async function handleAuditDelete(r) {
-  try {
-    await apiAuditReport({
-      userId: userStore.userId,
-      postId: r.postId,
-      approval: 1,
-    });
-    // 空响应 = 成功
-    ElMessage.success("已删除并通过审核");
-    reportList.value = reportList.value.filter((x) => x.postId !== r.postId);
-  } catch (e) {
-    ElMessage.error(e?.response?.data?.msg || "删除失败");
-  }
-}
+// 计算属性：显示用户名（匿名处理）
+import { computed } from 'vue'
+const displayName = computed(() => {
+  // 假设 detail.value.name 是用户名字段
+  if (!detail.value || !detail.value.name) return '匿名用户'
+  // 显示前两位+星号
+  const name = detail.value.name
+  if (name.length <= 2) return name[0] + '*'
+  return name.slice(0, 2) + '***'
+})
+
 /* 菜单切换 */
 function onFeedbackClick() {
-  activeMenu.value = "feedback";
-  loadFeedback();
+  activeMenu.value = 'feedback'
+  loadFeedback()
 }
 function onOrdersClick() {
-  activeMenu.value = "orders";
-  loadOrders();
+  activeMenu.value = 'orders'
+  loadOrders()
 }
 function onAuditClick() {
-  activeMenu.value = "audit";
-  loadAudit();
+  activeMenu.value = 'audit'
+  loadAudit()
 }
 
-onMounted(() => onFeedbackClick());
+onMounted(() => onFeedbackClick())
 </script>

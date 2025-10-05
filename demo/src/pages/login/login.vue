@@ -49,23 +49,21 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import './login.css'
-import { reactive } from 'vue'
+import { reactive, ref } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
-import { ref } from 'vue'
 
 const userStore = useUserStore()
-const router   = useRouter()
+const router = useRouter()
 
-const loginType = ref     ('student') 
+const loginType = ref<'student' | 'admin'>('student')
 const loginForm = reactive({ userName: '', password: '' })
 
-function setLoginType(type) {
+function setLoginType(type: 'student' | 'admin') {
   loginType.value = type
-  console.log(loginType.value)
 }
 
 function navigateToRegister() {
@@ -78,30 +76,25 @@ async function handleLogin() {
     return
   }
   try {
-    await userStore.login({
-      userName: loginForm.userName,
-      password: loginForm.password
-    })
-
+    await userStore.login(loginForm) // 只传 { userName, password }
     if (loginType.value === 'student') {
       if (userStore.isStudent) {
         router.push('/stuhome')
       } else {
         ElMessage.error('请输入正确的学生账号')
-        userStore.logout()   
+        userStore.logout()
       }
       return
     }
-
-    if (userStore.isAdmin) {
-      router.push('/admhome')
-    } else if (userStore.isSuper) {
+    if (userStore.isSuper) {
       router.push('/aphome')
+    } else if (userStore.isAdmin) {
+      router.push('/admhome')
     } else {
       ElMessage.error('当前账号不是管理员身份')
       userStore.logout()
     }
-  } catch (e) {
+  } catch (e: any) {
     ElMessage.error(e?.response?.data?.msg || '登录失败')
   }
 }
