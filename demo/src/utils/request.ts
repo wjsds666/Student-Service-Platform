@@ -1,33 +1,50 @@
-import { useUserStore } from "@/stores/user";
-import axios from "axios";
-import { ElMessage } from "element-plus";
+import axios, { AxiosError } from 'axios'
+import { ElMessage } from 'element-plus'
+
+type RefreshToken = () => Promise<boolean>
+type LogoutFn = () => void
 
 const service = axios.create({
-  baseURL: "http://127.0.0.1:4523/m1/7132041-6855088-default", // 👈 地址
-  timeout: 6000,
-});
+  baseURL: 'http://127.0.0.1:4523/m1/7132041-6855088-default',
+  timeout: 6000
+})
 
-service.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) {
-    config.headers["Authorization"] = `Bearer ${token}`;
-  }
-  return config;
-});
+/* 刷新令牌函数（外部注入） */
+let refreshToken: RefreshToken
+let logout: LogoutFn
 
+export function setAuthHandlers(rt: RefreshToken, lg: LogoutFn) {
+  refreshToken = rt
+  logout = lg
+}
+
+/* 请求拦截：自动带 token */
+service.interceptors.request.use(config => {
+  const token = localStorage.getItem('token')
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
+
+/* 响应拦截：401 先刷新，刷新失败再退出 */
 service.interceptors.response.use(
-  (res) => res.data,
-  (err) => {
-    const { response } = err;
-    // 统一 token 失效场景
-    if (response?.status === 401 || response?.data?.code === 401) {
-      ElMessage.error("登录已过期");
-      useUserStore().logout(); // 清缓存 + 跳登录
+  res => res.data,
+  async (err: AxiosError) => {
+    const res = err.response
+    if (res?.status === 401) {
+      /* 尝试刷新 */
+      const ok = await refreshToken()
+      if (ok) {
+        /* 刷新成功，重发原请求 */
+        return service(err.config!)
+      }
+      /* 刷新失败，清场 + 跳转 */
+      ElMessage.error('登录已过期')
+      logout()
     } else {
-      ElMessage.error(response?.data?.msg || "网络错误");
+      ElMessage.error((res?.data as any)?.msg || '网络错误')
     }
-    return Promise.reject(err);
+    return Promise.reject(err)
   }
-);
+)
 
-export default service;
+export default service
