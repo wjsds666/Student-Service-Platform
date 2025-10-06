@@ -1,12 +1,12 @@
 import { defineStore } from 'pinia'
 import { apiLogin } from '@/api/user'
 import axios from 'axios'
-import router from '@/router'
+import router from '@//router'
 
 export const useUserStore = defineStore('user', {
   state: () => ({
     token: localStorage.getItem('token') || '',
-    refresh: localStorage.getItem('refresh') || '', // ← 新增：保存刷新令牌
+    refresh: localStorage.getItem('refresh') || '',
     userId: Number(localStorage.getItem('userId')) || 0,
     userType: Number(localStorage.getItem('userType')) || 0
   }),
@@ -27,18 +27,26 @@ export const useUserStore = defineStore('user', {
       this.userType= Number(localStorage.getItem('userType')) || 0
     },
 
-    /* 登录 */
-    async login(form: { userName: string; password: string }) {
+    /* 登录：形参改成下划线，与调用处 form.username 对齐 */
+    async login(form: { username: string; password: string }) {
+      console.log('即将发登录', form)
       const { data } = await apiLogin(form)
+      console.log('登录返回', data)
+      console.log('头像路径', data.avatarUrl || '')
+
       this.token   = data.token
-      this.refresh = data.refresh || '' // 后端若返 refresh 就存
+      this.refresh = data.refresh || ''
       this.userId  = data.userId
       this.userType= data.userType
 
+      // 强制写 localStorage
       localStorage.setItem('token', data.token)
       localStorage.setItem('refresh', data.refresh || '')
       localStorage.setItem('userType', String(data.userType))
       localStorage.setItem('userId', String(data.userId))
+      localStorage.setItem('avatarUrl', data.avatarUrl || '')   // ← 强制写头像
+
+      console.log('存完token', localStorage.getItem('token'))
 
       /* 按角色跳转 */
       if (this.isStudent) router.push({ name: 'stuhome', replace: true })
@@ -62,9 +70,13 @@ export const useUserStore = defineStore('user', {
 
     /* 退出登录 */
     logout() {
-      localStorage.clear()
+      localStorage.removeItem('token')
+      localStorage.removeItem('userId')
+      localStorage.removeItem('userType')
+      localStorage.removeItem('refresh')
+      localStorage.removeItem('avatarUrl')   // ← 强制清头像
       this.$reset()
       router.replace('/login')
     }
-  }
+  },
 })

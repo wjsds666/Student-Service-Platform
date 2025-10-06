@@ -8,7 +8,7 @@
         </div>
         <div class="input-group">
           <label for="username">用户名</label>
-          <input type="text" id="username" v-model="registerForm.userName" placeholder="请输入用户名" required />
+          <input type="text" id="username" v-model="registerForm.username" placeholder="请输入用户名" required />
         </div>
         <div class="input-group">
           <label for="password">密码</label>
@@ -30,17 +30,17 @@ import { ElMessage } from 'element-plus'
 const router = useRouter()
 const registerForm = reactive({
   email: '',
-  userName: '',
+  username: '',
   password: ''
 })
 
 async function handleRegister() {
-  if (!registerForm.email || !registerForm.userName || !registerForm.password) {
+  if (!registerForm.email || !registerForm.username || !registerForm.password) {
     ElMessage.warning('请填写完整')
     return
   }
   try {
-    await apiReg(registerForm) // 只传 { userName, password, email }
+    await apiReg(registerForm)
     ElMessage.success('注册成功，请登录')
     router.push({ name: 'login' })
   } catch (e: any) {

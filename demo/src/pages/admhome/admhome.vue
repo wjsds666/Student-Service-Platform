@@ -108,6 +108,7 @@ import {
   apiFinishOrder
 } from '@/api/post'
 import { apiReportPost, apiRevokeOrder } from '@/api/report'
+
 const userStore = useUserStore()
 const activeMenu = ref('feedback')
 
@@ -160,7 +161,7 @@ async function handleRevoke(post: any) {
 /* 标记完成 */
 async function handleFinish(post: any) {
   try {
-    await apiFinishOrder(post.postId) // 仅 acceptanceId
+    await apiFinishOrder(post.postId)
     ElMessage.success('该反馈已标记为完成')
     loadOrders()
   } catch (e: any) {

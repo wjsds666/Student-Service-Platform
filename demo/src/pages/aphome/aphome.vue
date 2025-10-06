@@ -150,7 +150,7 @@
 </template>
 <script setup lang="ts">
 import './aphome.css'
-import { ref, onMounted, } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import {
@@ -164,8 +164,9 @@ import {
   apiGetReportsForAudit,
   apiAuditReport,
   apiDeletePostBySuper,
-  apiRevokeOrder 
+  apiRevokeOrder
 } from '@/api/report'
+
 const userStore = useUserStore()
 const activeMenu = ref('feedback')
 
@@ -196,7 +197,7 @@ async function loadFeedback() {
 async function loadOrders() {
   loading.value = true
   try {
-    const res = await apiSelectOrders({ userId: userStore.userId, state: 2})
+    const res = await apiSelectOrders({ userId: userStore.userId, state: 2 })
     orderPosts.value = res.data || res || []
   } finally {
     loading.value = false
@@ -226,16 +227,14 @@ async function handleRevoke(post: any) {
   try {
     await apiRevokeOrder(userStore.userId, post.postId)
     ElMessage.success('已撤单')
-    loadOrders()          // 刷新“我的接单”列表
-    loadFeedback()        // 可选：刷新待接单列表
+    loadOrders()
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.msg || '撤单失败')
   }
 }
-/* 结束接单 */
 async function handleFinish(post: any) {
   try {
-    await apiFinishOrder(post.postId)   // 后端用 postId 当 acceptanceId
+    await apiFinishOrder(post.postId)
     ElMessage.success('该反馈已标记为完成')
     loadOrders()
   } catch (e: any) {
@@ -262,6 +261,9 @@ async function handleAuditDelete(r: any) {
 }
 
 /* 用户展示（匿名星号 + 头像） */
+const displayName = computed(() =>
+  (!detail.value.hide || detail.value.hide === 1) ? '***' : (detail.value.userName || '未知用户')
+)
 
 const showAvatar = computed(() =>
   detail.value.hide !== 1 && detail.value.picture
@@ -308,17 +310,6 @@ function openAuditDetail(r: any) {
   auditDetail.value = r
   showAuditDlg.value = true
 }
-
-// 计算属性：显示用户名（匿名处理）
-import { computed } from 'vue'
-const displayName = computed(() => {
-  // 假设 detail.value.name 是用户名字段
-  if (!detail.value || !detail.value.name) return '匿名用户'
-  // 显示前两位+星号
-  const name = detail.value.name
-  if (name.length <= 2) return name[0] + '*'
-  return name.slice(0, 2) + '***'
-})
 
 /* 菜单切换 */
 function onFeedbackClick() {

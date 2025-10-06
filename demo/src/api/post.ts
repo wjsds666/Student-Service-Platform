@@ -30,7 +30,7 @@ export const apiComment = (data: {
 /** 上传反馈图片（单张）
  * POST /api/user/post/uploadImage
  * form-data: { image: File, postId?: number }  */
-export function apiUploadPostImage(file: File, postId?: number) {
+export function apiUploadPostImage(file: File, postId: number = 1) {
   const fd = new FormData()
   fd.append('image', file)
   if (postId) fd.append('postId', String(postId))
@@ -58,6 +58,7 @@ export const apiSelectOrders = (params?: {
   userId?: number
   state?: 1 | 2
 }) => request.get('/api/user/admin/select', { params })
+
 /** 接单
  * PUT /api/user/admin/acceptPost
  * body: { userId, postId } */

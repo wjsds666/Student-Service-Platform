@@ -22,7 +22,7 @@
         <form class="login-form" @submit.prevent="handleLogin">
           <div class="form-group">
             <label>用户名</label>
-            <input v-model="loginForm.userName" type="text" placeholder="请输入用户名" />
+            <input v-model="loginForm.username" type="text" placeholder="请输入用户名" />
           </div>
           <div class="form-group">
             <label>密码</label>
@@ -36,7 +36,7 @@
         <form class="login-form" @submit.prevent="handleLogin">
           <div class="form-group">
             <label>管理员账号</label>
-            <input v-model="loginForm.userName" type="text" placeholder="请输入管理员账号" />
+            <input v-model="loginForm.username" type="text" placeholder="请输入管理员账号" />
           </div>
           <div class="form-group">
             <label>密码</label>
@@ -60,7 +60,7 @@ const userStore = useUserStore()
 const router = useRouter()
 
 const loginType = ref<'student' | 'admin'>('student')
-const loginForm = reactive({ userName: '', password: '' })
+const loginForm = reactive({ username: '', password: '' })
 
 function setLoginType(type: 'student' | 'admin') {
   loginType.value = type
@@ -71,12 +71,17 @@ function navigateToRegister() {
 }
 
 async function handleLogin() {
-  if (!loginForm.userName || !loginForm.password) {
+  if (!loginForm.username || !loginForm.password) {
     ElMessage.warning('请填写完整')
     return
   }
   try {
-    await userStore.login(loginForm) // 只传 { userName, password }
+    await userStore.login(loginForm)
+    console.log('刚存完', localStorage.getItem('userId'))
+    localStorage.setItem('userId', String(userStore.userId))
+localStorage.setItem('userType', String(userStore.userType))
+
+    /* ---------- 跳转逻辑 ---------- */
     if (loginType.value === 'student') {
       if (userStore.isStudent) {
         router.push('/stuhome')
@@ -84,15 +89,15 @@ async function handleLogin() {
         ElMessage.error('请输入正确的学生账号')
         userStore.logout()
       }
-      return
-    }
-    if (userStore.isSuper) {
-      router.push('/aphome')
-    } else if (userStore.isAdmin) {
-      router.push('/admhome')
-    } else {
-      ElMessage.error('当前账号不是管理员身份')
-      userStore.logout()
+    } else {   // 管理员入口
+      if (userStore.isSuper) {
+        router.push('/aphome')
+      } else if (userStore.isAdmin) {
+        router.push('/admhome')
+      } else {
+        ElMessage.error('当前账号不是管理员身份')
+        userStore.logout()
+      }
     }
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.msg || '登录失败')

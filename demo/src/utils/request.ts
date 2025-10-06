@@ -4,12 +4,6 @@ import { ElMessage } from 'element-plus'
 type RefreshToken = () => Promise<boolean>
 type LogoutFn = () => void
 
-const service = axios.create({
-  baseURL: 'http://8.134.147.255:8081',
-  timeout: 6000
-})
-
-/* 刷新令牌函数（外部注入） */
 let refreshToken: RefreshToken
 let logout: LogoutFn
 
@@ -18,26 +12,29 @@ export function setAuthHandlers(rt: RefreshToken, lg: LogoutFn) {
   logout = lg
 }
 
-/* 请求拦截：自动带 token */
+const service = axios.create({
+  baseURL: 'http://localhost:8081',
+  timeout: 6000
+})
+
+/* 请求拦截：注册/登录不带 Authorization，其余带 token */
 service.interceptors.request.use(config => {
+  const noNeed = ['/api/user/reg', '/api/user/login']
+  if (noNeed.some(url => config.url!.endsWith(url))) return config   // 直接放行
+
   const token = localStorage.getItem('token')
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
 
-/* 响应拦截：401 先刷新，刷新失败再退出 */
+/* 响应拦截：401 先刷新，刷新失败退出；错误提示读 msg 字段 */
 service.interceptors.response.use(
   res => res.data,
   async (err: AxiosError) => {
     const res = err.response
     if (res?.status === 401) {
-      /* 尝试刷新 */
       const ok = await refreshToken()
-      if (ok) {
-        /* 刷新成功，重发原请求 */
-        return service(err.config!)
-      }
-      /* 刷新失败，清场 + 跳转 */
+      if (ok) return service(err.config!)
       ElMessage.error('登录已过期')
       logout()
     } else {

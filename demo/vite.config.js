@@ -14,10 +14,9 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://8.134.147.255:8081",
-
+        target: "http://localhost:8081",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ""), // 关键：把 /api 去掉再转发
+        // 不再重写路径，保持 /api/xxx
       },
     },
   },
