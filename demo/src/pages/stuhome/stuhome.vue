@@ -19,13 +19,12 @@
       <div class="card" style="display:flex;align-items:flex-start;gap:24px">
         <!-- 头像 -->
         <div class="avatar-box">
-  <input ref="fileInput" type="file" accept="image/*" style="display:none" @change="onAvatarChange" />
-  <div class="avatar-circle" @click="triggerAvatarSelect">
-    <img v-if="avatarUrl" :src="'http://localhost:8081' + avatarUrl" class="avatar-img" />
-    <div v-else class="avatar-placeholder">点击添加头像</div>
-  </div>
-</div>
-
+          <input ref="fileInput" type="file" accept="image/*" style="display:none" @change="onAvatarChange" />
+          <div class="avatar-circle" @click="triggerAvatarSelect">
+            <img v-if="avatarUrl" :src="'http://localhost:8081' + avatarUrl" class="avatar-img" />
+            <div v-else class="avatar-placeholder">点击添加头像</div>
+          </div>
+        </div>
         <!-- 表单 -->
         <el-form label-width="80px" style="flex:1">
           <el-form-item label="姓名"><el-input v-model="profile.name" placeholder="请输入姓名" /></el-form-item>
@@ -50,7 +49,6 @@
         <div v-for="f in feedbacks" :key="f.postId" class="card" @click="openView(f)">
           <div class="card-header">
             {{ f.title }}
-            <!-- 通知铃铛 -->
             <el-badge :value="f.noticeCount" :hidden="!f.noticeCount" class="notice-badge">
               <el-icon class="bell-icon" @click.stop="openNotice(f)"><Bell /></el-icon>
             </el-badge>
@@ -83,8 +81,9 @@
                 <span class="plus">+</span>
               </div>
               <input ref="picInput" type="file" accept="image/*" style="display:none" @change="onPicChange" />
+              <!-- 关键：用后端返回的真实路径 -->
               <div v-for="(f, idx) in picFiles" :key="idx" class="img-preview">
-                <img :src="f.url" />
+                <img :src="'http://localhost:8081' + f.url" />
                 <span class="close" @click.stop="removePic(idx)">×</span>
               </div>
             </div>
@@ -190,7 +189,7 @@ async function onAvatarChange(e: Event) {
   }
   try {
     const { data } = await apiUploadAvatar(file, userStore.userId)
-    avatarUrl.value = data // ← 新增：把路径写进响应式变量
+    avatarUrl.value = data
     localStorage.setItem('avatarUrl', data)
     ElMessage.success('头像更新成功')
   } catch (err: any) {
@@ -242,8 +241,8 @@ async function onPicChange(e: Event) {
   const left = 3 - picFiles.value.length
   for (const f of files.slice(0, left)) {
     try {
-      const { data } = await apiUploadPostImage(f, 1)
-      picFiles.value.push({ file: f, url: data.url })
+      const { data } = await apiUploadPostImage(f, 1)      // data = "/post/xx/xx.png"
+      picFiles.value.push({ file: f, url: data })           // ✅ 用真实路径
     } catch (err: any) {
       ElMessage.error(err?.response?.data?.msg || '图片上传失败')
     }
@@ -251,7 +250,6 @@ async function onPicChange(e: Event) {
   ;(e.target as HTMLInputElement).value = ''
 }
 function removePic(idx: number) {
-  URL.revokeObjectURL(picFiles.value[idx].url)
   picFiles.value.splice(idx, 1)
 }
 async function handleSubmit() {
@@ -286,7 +284,11 @@ function openReply(p: any) {
 async function submitReply() {
   if (!replyStar.value) return ElMessage.warning('请先选择星级')
   try {
-    await apiComment({ userId: userStore.userId, postId: currentReplyPost.value.postId, content: replyText.value.trim() })
+    await apiComment({
+      userId: userStore.userId,
+      postId: currentReplyPost.value.postId,
+      content: replyText.value.trim()
+    })
     ElMessage.success('评价已提交')
     showReplyDlg.value = false
     await loadMyPosts()
@@ -297,9 +299,11 @@ async function submitReply() {
 
 function triggerAvatarSelect() { fileInput.value?.click() }
 function switchMenu(key: string) { activeMenu.value = key; if (key === 'mine') loadMyPosts() }
+
 onMounted(() => {
   userStore.restore()
   avatarUrl.value = localStorage.getItem('avatarUrl') || ''
   switchMenu('profile')
+  loadMyPosts()   // ← 保证首次进页面就拉列表
 })
 </script>

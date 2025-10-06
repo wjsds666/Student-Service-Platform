@@ -109,19 +109,21 @@ import {
 } from '@/api/post'
 import { apiReportPost, apiRevokeOrder } from '@/api/report'
 
+/* 基础 */
 const userStore = useUserStore()
-const activeMenu = ref('feedback')
+const activeMenu = ref<'feedback' | 'orders'>('feedback')
 
 /* 数据 */
 const feedbackPosts = ref<any[]>([])
-const orderPosts = ref<any[]>([])
-const loading = ref(false)
+const orderPosts   = ref<any[]>([])
+const loading      = ref(false)
 
+/* 加载 */
 async function loadFeedback() {
   loading.value = true
   try {
-    const res = await apiGetAllPosts({ state: 1 })
-    feedbackPosts.value = res.data || res || []
+    const res = await apiGetAllPosts({ state: 1, userId: userStore.userId })
+    feedbackPosts.value = res.data ?? []
   } finally {
     loading.value = false
   }
@@ -130,7 +132,7 @@ async function loadOrders() {
   loading.value = true
   try {
     const res = await apiSelectOrders({ userId: userStore.userId, state: 2 })
-    orderPosts.value = res.data || res || []
+    orderPosts.value = res.data ?? []
   } finally {
     loading.value = false
   }
@@ -139,15 +141,20 @@ async function loadOrders() {
 /* 接单 */
 async function handleClaim(post: any) {
   try {
-    await apiAcceptPost({ userId: userStore.userId, postId: post.postId })
-    ElMessage.success('接单成功')
-    loadFeedback()
+    const { data } = await apiAcceptPost(post.postId, userStore.userId)
+
+    if (data.code === 200) {
+      ElMessage.success('接单成功')
+      loadFeedback()
+    } else {
+      ElMessage.error(data.msg || '接单失败')
+    }
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.msg || '接单失败')
+    ElMessage.error(e?.response?.data?.msg || '网络错误')
   }
 }
 
-/* 撤销接单 */
+/* 撤销 */
 async function handleRevoke(post: any) {
   try {
     await apiRevokeOrder(userStore.userId, post.postId)
@@ -158,10 +165,10 @@ async function handleRevoke(post: any) {
   }
 }
 
-/* 标记完成 */
+/* 完成 */
 async function handleFinish(post: any) {
   try {
-    await apiFinishOrder(post.postId)
+    await apiFinishOrder(post.acceptanceId)
     ElMessage.success('该反馈已标记为完成')
     loadOrders()
   } catch (e: any) {
@@ -172,17 +179,14 @@ async function handleFinish(post: any) {
 /* 回复 */
 const showReplyDlg = ref(false)
 const replyText = ref('')
-let currentReplyPost = null as any
+let currentReplyPost: any = null
 function openReplyDlg(post: any) {
   currentReplyPost = post
   replyText.value = ''
   showReplyDlg.value = true
 }
 async function submitReply() {
-  if (!replyText.value.trim()) {
-    ElMessage.warning('请输入回复内容')
-    return
-  }
+  if (!replyText.value.trim()) return ElMessage.warning('请输入回复内容')
   try {
     await apiReplyPost({
       userId: userStore.userId,
@@ -200,23 +204,16 @@ async function submitReply() {
 /* 举报 */
 const showReportDlg = ref(false)
 const reportText = ref('')
-let currentReportPost = null as any
+let currentReportPost: any = null
 function openReportDlg(post: any) {
   currentReportPost = post
   reportText.value = ''
   showReportDlg.value = true
 }
 async function submitReport() {
-  if (!reportText.value.trim()) {
-    ElMessage.warning('请填写举报理由')
-    return
-  }
+  if (!reportText.value.trim()) return ElMessage.warning('请填写举报理由')
   try {
-    await apiReportPost(
-      userStore.userId,
-      currentReportPost.postId,
-      reportText.value.trim()
-    )
+    await apiReportPost(userStore.userId, currentReportPost.postId, reportText.value.trim())
     ElMessage.success('举报提交成功，等待超级管理员审核')
     showReportDlg.value = false
     loadFeedback()
@@ -225,18 +222,13 @@ async function submitReport() {
   }
 }
 
-/* 用户展示（匿名星号 + 头像） */
-const displayName = computed(() =>
-  (!detail.value.hide || detail.value.hide === 1) ? '***' : (detail.value.userName || '未知用户')
-)
-
-const showAvatar = computed(() =>
-  detail.value.hide !== 1 && detail.value.picture
-)
-
 /* 详情弹窗 */
 const showDlg = ref(false)
 const detail = ref<any>({})
+const displayName = computed(() =>
+  detail.value.hide === 1 ? '***' : (detail.value.userName || '未知用户')
+)
+const showAvatar = computed(() => detail.value.hide !== 1 && detail.value.picture)
 function openDetail(post: any) {
   detail.value = post
   showDlg.value = true
