@@ -33,7 +33,7 @@
           <el-form-item label="班级"><el-input v-model="profile.class" placeholder="请输入班级" /></el-form-item>
           <el-form-item label="手机"><el-input v-model="profile.phone" placeholder="请输入手机" /></el-form-item>
           <el-form-item label="邮箱"><el-input v-model="profile.email" placeholder="请输入邮箱" /></el-form-item>
-          <el-form-item label="">
+          <el-form-item>
             <div style="width:100%;display:flex;justify-content:center">
               <el-button type="primary" :loading="saveLoading" @click="handleSave">保存</el-button>
             </div>
@@ -54,6 +54,16 @@
             </el-badge>
           </div>
           <div class="card-body">{{ f.content }}</div>
+
+          <!-- 🔥自适应轮播 -->
+          <div v-if="f.image" class="pic-carousel">
+            <el-carousel indicator-position="outside" height="200px" :interval="4000">
+              <el-carousel-item v-for="(url,idx) in f.image.split(',')" :key="idx">
+                <img :src="'http://localhost:8081' + url" class="carousel-img" @click="previewImage(url)" />
+              </el-carousel-item>
+            </el-carousel>
+          </div>
+
           <div class="card-footer">
             <el-tag :type="f.level === 1 ? 'danger' : 'info'">{{ f.level === 1 ? "紧急" : "普通" }}</el-tag>
             <span style="margin-left:auto;font-size:13px;color:#666">提交于 {{ f.createTime }}</span>
@@ -81,7 +91,6 @@
                 <span class="plus">+</span>
               </div>
               <input ref="picInput" type="file" accept="image/*" style="display:none" @change="onPicChange" />
-              <!-- 关键：用后端返回的真实路径 -->
               <div v-for="(f, idx) in picFiles" :key="idx" class="img-preview">
                 <img :src="'http://localhost:8081' + f.url" />
                 <span class="close" @click.stop="removePic(idx)">×</span>
@@ -108,6 +117,16 @@
         <el-tag :type="viewPost.level === 1 ? 'danger' : 'info'">{{ viewPost.level === 1 ? "紧急" : "普通" }}</el-tag>
       </p>
       <p class="content">{{ viewPost.content }}</p>
+
+      <!-- 🔥详情轮播 -->
+      <div v-if="viewPost.image" class="pic-carousel">
+        <el-carousel indicator-position="outside" height="220px">
+          <el-carousel-item v-for="(url,idx) in viewPost.image.split(',')" :key="idx">
+            <img :src="'http://localhost:8081' + url" class="carousel-img" @click="previewImage(url)" />
+          </el-carousel-item>
+        </el-carousel>
+      </div>
+
       <div class="response-box">
         <div class="response-title">管理员回复</div>
         <div class="response-content">{{ viewPost.response || "管理员还未回复，请耐心等待" }}</div>
@@ -146,6 +165,13 @@
       <el-button @click="showNoticeDlg = false">关闭</el-button>
     </template>
   </el-dialog>
+
+  <!-- 大图预览 -->
+  <el-image-viewer
+    v-if="showViewer"
+    :url-list="[previewUrl]"
+    @close="showViewer=false"
+  />
 </template>
 
 <script setup lang="ts">
@@ -252,10 +278,19 @@ async function onPicChange(e: Event) {
 function removePic(idx: number) {
   picFiles.value.splice(idx, 1)
 }
+
 async function handleSubmit() {
   if (!form.value.title || !form.value.content) return ElMessage.warning('请填标题和内容')
   try {
-    await apiSubmitPost({ userId: userStore.userId, ...form.value })
+    console.log('提交前 picFiles:', picFiles.value) // ①
+    const uploadedUrls: string[] = []
+    for (const f of picFiles.value) {
+      const { data } = await apiUploadPostImage(f.file, 1)
+      uploadedUrls.push(data) // 只拿 url
+    }
+    const imageStr = uploadedUrls.join(',')
+    console.log('即将提交 image:', imageStr) // ②
+    await apiSubmitPost({ userId: userStore.userId, ...form.value, image: imageStr })
     ElMessage.success('提交成功')
     form.value = { title: '', content: '', level: 2, hide: 2 }
     picFiles.value = []
@@ -297,6 +332,14 @@ async function submitReply() {
   }
 }
 
+/* ---------- 大图预览 ---------- */
+const previewUrl = ref('')
+const showViewer = ref(false)
+function previewImage(url: string) {
+  previewUrl.value = 'http://localhost:8081' + url
+  showViewer.value = true
+}
+
 function triggerAvatarSelect() { fileInput.value?.click() }
 function switchMenu(key: string) { activeMenu.value = key; if (key === 'mine') loadMyPosts() }
 
@@ -304,6 +347,6 @@ onMounted(() => {
   userStore.restore()
   avatarUrl.value = localStorage.getItem('avatarUrl') || ''
   switchMenu('profile')
-  loadMyPosts()   // ← 保证首次进页面就拉列表
+  loadMyPosts()
 })
 </script>

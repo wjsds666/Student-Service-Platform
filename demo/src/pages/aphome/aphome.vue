@@ -20,6 +20,16 @@
         <div class="card" v-for="p in feedbackPosts" :key="p.postId" @click="openDetail(p)">
           <div class="card-header">{{ p.title }}</div>
           <div class="card-body">{{ p.content }}</div>
+
+          <!-- 🔥超管卡片轮播 -->
+          <div v-if="p.image" class="pic-carousel">
+            <el-carousel indicator-position="outside" height="200px" :interval="4000">
+              <el-carousel-item v-for="(url, idx) in p.image.split(',')" :key="idx">
+                <img :src="'http://localhost:8081' + url" class="carousel-img" @click="previewImage(url)" />
+              </el-carousel-item>
+            </el-carousel>
+          </div>
+
           <div class="card-footer">
             <button class="action-btn" @click.stop="handleClaim(p)">接单</button>
             <button class="action-btn danger" @click.stop="handleDelete(p)">删除</button>
@@ -35,6 +45,16 @@
         <div class="card" v-for="p in orderPosts" :key="p.postId" @click="openDetail(p)">
           <div class="card-header">{{ p.title }}</div>
           <div class="card-body">{{ p.content }}</div>
+
+          <!-- 🔥超管接单卡片轮播 -->
+          <div v-if="p.image" class="pic-carousel">
+            <el-carousel indicator-position="outside" height="200px" :interval="4000">
+              <el-carousel-item v-for="(url, idx) in p.image.split(',')" :key="idx">
+                <img :src="'http://localhost:8081' + url" class="carousel-img" @click="previewImage(url)" />
+              </el-carousel-item>
+            </el-carousel>
+          </div>
+
           <div class="card-footer">
             <button class="action-btn" @click.stop="openReplyDlg(p)">回复</button>
             <button class="action-btn danger" @click.stop="handleRevoke(p)">撤单</button>
@@ -63,18 +83,20 @@
       </div>
     </div>
 
-    <!-- 详情弹窗 -->
+    <!-- 详情弹窗：大图轮播 + 预览 -->
     <el-dialog v-model="showDlg" title="详情" width="700px" center>
       <el-carousel v-if="detail.image?.length" height="400px" indicator-position="outside">
-        <el-carousel-item v-for="(url, idx) in detail.image" :key="idx">
-          <el-image :src="url" :preview-src-list="detail.image" fit="contain" class="gallery-img" />
+        <el-carousel-item v-for="(url, idx) in detail.image.split(',')" :key="idx">
+          <img :src="'http://localhost:8081' + url" class="carousel-img" @click="previewImage(url)" />
         </el-carousel-item>
       </el-carousel>
+
       <div class="detail-info">
         <div class="user-line">
           <el-avatar v-if="showAvatar" :src="detail.picture" size="small" class="avatar" />
           <span class="user-name">{{ displayName }}</span>
         </div>
+
         <h3>{{ detail.title }}</h3>
         <p class="meta">提交时间：{{ detail.createTime }}</p>
         <p class="meta">
@@ -86,6 +108,7 @@
         <p class="content">{{ detail.content }}</p>
         <p v-if="detail.response" class="response">管理员回复：{{ detail.response }}</p>
       </div>
+
       <template #footer>
         <el-button @click="showDlg = false">关闭</el-button>
       </template>
@@ -103,22 +126,31 @@
     <!-- 审核详情弹窗 -->
     <el-dialog v-model="showAuditDlg" title="举报详情" width="700px" center>
       <el-carousel v-if="auditDetail.image?.length" height="400px" indicator-position="outside">
-        <el-carousel-item v-for="(url, idx) in auditDetail.image" :key="idx">
-          <el-image :src="url" :preview-src-list="auditDetail.image" fit="contain" class="gallery-img" />
+        <el-carousel-item v-for="(url, idx) in auditDetail.image.split(',')" :key="idx">
+          <img :src="'http://localhost:8081' + url" class="carousel-img" @click="previewImage(url)" />
         </el-carousel-item>
       </el-carousel>
+
       <div class="detail-info">
         <h3>{{ auditDetail.title }}</h3>
         <p class="meta">提交时间：{{ auditDetail.createTime }}</p>
         <p class="content">{{ auditDetail.content }}</p>
         <p v-if="auditDetail.reason" class="meta"><strong>举报理由：</strong>{{ auditDetail.reason }}</p>
       </div>
+
       <template #footer>
         <div style="text-align: center">
           <el-button @click="showAuditDlg = false">关闭</el-button>
         </div>
       </template>
     </el-dialog>
+
+    <!-- 大图预览 -->
+    <el-image-viewer
+      v-if="showViewer"
+      :url-list="previewUrl.split(',').map(u => 'http://localhost:8081' + u)"
+      @close="showViewer = false"
+    />
   </div>
 </template>
 
@@ -135,7 +167,7 @@ import {
   apiFinishOrder
 } from '@/api/post'
 import {
-  apiGetReports,                // ← 用已有导出
+  apiGetReports,
   apiAuditReport,
   apiDeletePostBySuper,
   apiRevokeOrder
@@ -146,15 +178,23 @@ const activeMenu = ref<'feedback' | 'orders' | 'audit'>('feedback')
 
 /* -------------- 数据 -------------- */
 const feedbackPosts = ref<any[]>([])
-const orderPosts   = ref<any[]>([])
-const reportList   = ref<any[]>([])
-const loading      = ref(false)
+const orderPosts = ref<any[]>([])
+const reportList = ref<any[]>([])
+const loading = ref(false)
 
-/* -------------- 加载 -------------- */
+/* -------------- 大图预览 -------------- */
+const previewUrl = ref('')
+const showViewer = ref(false)
+function previewImage(url: string) {
+  previewUrl.value = url
+  showViewer.value = true
+}
+
+/* -------------- 加载（不传 userId，看全部人） -------------- */
 async function loadFeedback() {
   loading.value = true
   try {
-    const res = await apiGetAllPosts({ state: 1, userId: userStore.userId })   // ← 补userId
+    const res = await apiGetAllPosts  ({ state: 1, userId: userStore.userId })
     feedbackPosts.value = res.data ?? []
   } finally {
     loading.value = false
@@ -163,7 +203,7 @@ async function loadFeedback() {
 async function loadOrders() {
   loading.value = true
   try {
-    const res = await apiSelectOrders({ userId: userStore.userId, state: 2 })
+    const res = await apiSelectOrders({ state: 2 }) // 🔥不传 userId
     orderPosts.value = res.data ?? []
   } finally {
     loading.value = false
@@ -172,7 +212,7 @@ async function loadOrders() {
 async function loadAudit() {
   loading.value = true
   try {
-    const res = await apiGetReports()          // ← 去掉 userId
+    const res = await apiGetReports() // 🔥不传 userId
     reportList.value = res.data ?? []
   } finally {
     loading.value = false

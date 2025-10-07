@@ -1,4 +1,5 @@
 <template>
+  <!-- 顶部条 -->
   <div class="top-bar">
     <div class="platform-name">管理员中心</div>
   </div>
@@ -18,6 +19,16 @@
         <div class="card" v-for="p in feedbackPosts" :key="p.postId" @click="openDetail(p)">
           <div class="card-header">{{ p.title }}</div>
           <div class="card-body">{{ p.content }}</div>
+
+          <!-- 🔥自适应轮播 -->
+          <div v-if="p.image" class="pic-carousel">
+            <el-carousel indicator-position="outside" height="200px" :interval="4000">
+              <el-carousel-item v-for="(url, idx) in p.image.split(',')" :key="idx">
+                <img :src="'http://localhost:8081' + url" class="carousel-img" @click="previewImage(url)" />
+              </el-carousel-item>
+            </el-carousel>
+          </div>
+
           <div class="card-footer">
             <button class="action-btn" @click.stop="handleClaim(p)">接单</button>
             <button class="action-btn" @click.stop="openReportDlg(p)">标记</button>
@@ -33,6 +44,16 @@
         <div class="card" v-for="p in orderPosts" :key="p.postId" @click="openDetail(p)">
           <div class="card-header">{{ p.title }}</div>
           <div class="card-body">{{ p.content }}</div>
+
+          <!-- 🔥自适应轮播 -->
+          <div v-if="p.image" class="pic-carousel">
+            <el-carousel indicator-position="outside" height="200px" :interval="4000">
+              <el-carousel-item v-for="(url, idx) in p.image.split(',')" :key="idx">
+                <img :src="'http://localhost:8081' + url" class="carousel-img" @click="previewImage(url)" />
+              </el-carousel-item>
+            </el-carousel>
+          </div>
+
           <div class="card-footer">
             <button class="action-btn" @click.stop="openReplyDlg(p)">回复</button>
             <button class="action-btn danger" @click.stop="handleRevoke(p)">撤销</button>
@@ -41,18 +62,16 @@
         </div>
       </div>
     </div>
-      
 
-    <!-- 详情弹窗：只保留一次内容 -->
+    <!-- 详情弹窗：轮播 + 预览 -->
     <el-dialog v-model="showDlg" title="详情" width="700px" center>
-<el-carousel v-if="detail.image?.length" height="400px" indicator-position="outside">
-  <el-carousel-item v-for="(url, idx) in detail.image" :key="idx">
-    <el-image :src="url" :preview-src-list="detail.image" fit="contain" class="gallery-img" />
-  </el-carousel-item>
-</el-carousel>
+      <el-carousel v-if="detail.image?.length" height="400px" indicator-position="outside">
+        <el-carousel-item v-for="(url, idx) in detail.image.split(',')" :key="idx">
+          <el-image :src="'http://localhost:8081' + url" :preview-src-list="detail.image.split(',')" fit="contain" class="gallery-img" />
+        </el-carousel-item>
+      </el-carousel>
 
       <div class="detail-info">
-        <!-- 用户区域：匿名星号 + 头像 -->
         <div class="user-line">
           <el-avatar v-if="showAvatar" :src="detail.picture" size="small" class="avatar" />
           <span class="user-name">{{ displayName }}</span>
@@ -92,6 +111,13 @@
         <el-button type="primary" @click="submitReport">提交</el-button>
       </template>
     </el-dialog>
+
+    <!-- 大图预览 -->
+    <el-image-viewer
+      v-if="showViewer"
+      :url-list="previewUrl.split(',').map(u => 'http://localhost:8081' + u)"
+      @close="showViewer = false"
+    />
   </div>
 </template>
 
@@ -118,11 +144,19 @@ const feedbackPosts = ref<any[]>([])
 const orderPosts   = ref<any[]>([])
 const loading      = ref(false)
 
-/* 加载 */
+/* 大图预览 */
+const previewUrl = ref('')
+const showViewer = ref(false)
+function previewImage(url: string) {
+  previewUrl.value = url
+  showViewer.value = true
+}
+
+/* 加载（Token 解析 userId）*/
 async function loadFeedback() {
   loading.value = true
   try {
-    const res = await apiGetAllPosts({ state: 1, userId: userStore.userId })
+    const res = await apiGetAllPosts({ state: 1, userId: userStore.userId }) // 不传 userId
     feedbackPosts.value = res.data ?? []
   } finally {
     loading.value = false
@@ -131,30 +165,29 @@ async function loadFeedback() {
 async function loadOrders() {
   loading.value = true
   try {
-    const res = await apiSelectOrders({ userId: userStore.userId, state: 2 })
+    // 🔥不传 userId，后端用 Token 解析
+    const res = await apiSelectOrders({ state: 2 })
+    console.log('【admin】selectOrders 返回:', res)
     orderPosts.value = res.data ?? []
+  } catch (e: any) {
+    console.error('【admin】selectOrders 异常:', e)
+    ElMessage.error(e?.response?.data?.msg || '加载接单失败')
   } finally {
     loading.value = false
   }
 }
-
 /* 接单 */
 async function handleClaim(post: any) {
   try {
-    const { data } = await apiAcceptPost(post.postId, userStore.userId)
-
-    if (data.code === 200) {
-      ElMessage.success('接单成功')
-      loadFeedback()
-    } else {
-      ElMessage.error(data.msg || '接单失败')
-    }
+    await apiAcceptPost(post.postId, userStore.userId)
+    ElMessage.success('接单成功')
+    loadFeedback()
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.msg || '网络错误')
+    ElMessage.error(e?.response?.data?.msg || '接单失败')
   }
 }
 
-/* 撤销 */
+/* 撤销（只传 acceptanceId，Param）*/
 async function handleRevoke(post: any) {
   try {
     await apiRevokeOrder(userStore.userId, post.postId)
@@ -165,7 +198,7 @@ async function handleRevoke(post: any) {
   }
 }
 
-/* 完成 */
+/* 结束（只传 acceptanceId，Param）*/
 async function handleFinish(post: any) {
   try {
     await apiFinishOrder(post.acceptanceId)
@@ -176,7 +209,7 @@ async function handleFinish(post: any) {
   }
 }
 
-/* 回复 */
+/* 回复（传 userId + content，JSON）*/
 const showReplyDlg = ref(false)
 const replyText = ref('')
 let currentReplyPost: any = null
@@ -201,7 +234,7 @@ async function submitReply() {
   }
 }
 
-/* 举报 */
+/* 标记（传 postId + reason，JSON）*/
 const showReportDlg = ref(false)
 const reportText = ref('')
 let currentReportPost: any = null

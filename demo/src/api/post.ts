@@ -1,3 +1,4 @@
+// src/api/post.ts
 import request from '@/utils/request'
 
 /* ========== 学生端 ========== */
@@ -13,6 +14,7 @@ export const apiSubmitPost = (data: {
   content: string
   level: 1 | 2
   hide: 1 | 2
+  image?: string
 }) => request.post('/api/user/student/post', data)
 
 /** 评价 */
@@ -22,7 +24,7 @@ export const apiComment = (data: {
   content: string
 }) => request.post('/api/user/student/comment', data)
 
-/** 上传反馈图片（单张） */
+/** 上传反馈图片 */
 export function apiUploadPostImage(file: File, postId: number) {
   const fd = new FormData()
   fd.append('image', file)
@@ -43,9 +45,8 @@ export const apiGetAllPosts = (params?: {
   level?: 0 | 1 | 2
 }) => request.get('/api/user/admin/getAllPosts', { params })
 
-/** 我的接单列表 */
+/** 我的接单列表（Token 解析，不传 userId） */
 export const apiSelectOrders = (params?: {
-  userId?: number
   state?: 1 | 2
 }) => request.get('/api/user/admin/select', { params })
 
@@ -59,14 +60,34 @@ export function apiAcceptPost(postId: number, acceptanceId: number) {
   })
 }
 
-/** 回复 */
+/**
+ * 回复帖子（JSON 体：userId + content + postId）
+ */
 export const apiReplyPost = (data: {
   userId: number
   postId: number
   content: string
 }) => request.post('/api/user/admin/response', data)
 
-
-/** 标记完成 */
+/**
+ * 结束接单（Param：acceptanceId）
+ */
 export const apiFinishOrder = (acceptanceId: number) =>
   request.put('/api/user/admin/resolve', null, { params: { acceptanceId } })
+
+/* ========== 举报 ========== */
+
+/**
+ * 标记帖子（JSON：userId + postId + reason）
+ */
+export const apiReportPost = (
+  userId: number,
+  postId: number,
+  reason: string
+) => request.put('/api/user/admin/report', { userId, postId, reason })
+
+/**
+ * 撤销接单（Param：acceptanceId）
+ */
+export const apiRevokeOrder = (acceptanceId: number) =>
+  request.put('/api/user/admin/delete_accept', null, { params: { acceptanceId } })
